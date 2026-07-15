@@ -1,6 +1,8 @@
 import SuggestionCard from "./SuggestionCard.jsx";
+import DocStats from "./DocStats.jsx";
 
 export default function ReviewPanel({
+  editor,
   activeTool,
   grammarMatches,
   onApply,
@@ -58,6 +60,8 @@ export default function ReviewPanel({
           </ul>
         )}
       </div>
+
+      <DocStats editor={editor} />
     </div>
   );
 }

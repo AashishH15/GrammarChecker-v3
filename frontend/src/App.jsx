@@ -168,6 +168,7 @@ export default function App() {
 
         <aside className="w-80 shrink-0 border-l border-hairline">
           <ReviewPanel
+            editor={editor}
             selectedText={selectedText}
             activeTool={activeTool}
             grammarMatches={grammarMatches}
