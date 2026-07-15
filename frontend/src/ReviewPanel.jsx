@@ -2,6 +2,7 @@ export default function ReviewPanel({
   selectedText,
   activeTool,
   grammarMatches,
+  onApply,
   onClear,
 }) {
   return (
@@ -30,13 +31,25 @@ export default function ReviewPanel({
           )}
           {grammarMatches.length > 0 && (
             <ul className="mt-4 flex flex-col gap-2">
-              {grammarMatches.map((match, i) => (
-                <li key={i} className="rounded border border-hairline bg-pale-red/40 p-2">
+              {grammarMatches.map((match) => (
+                <li
+                  key={match.id}
+                  className="rounded border border-hairline bg-pale-red/40 p-2"
+                >
                   <p className="text-sm text-ink">{match.message}</p>
                   {match.replacements.length > 0 && (
-                    <p className="mt-1 text-xs text-pale-red-text">
-                      {match.replacements.slice(0, 3).join(", ")}
-                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {match.replacements.slice(0, 3).map((replacement, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => onApply(match, replacement)}
+                          className="rounded border border-hairline bg-pale-green px-2 py-1 text-xs text-pale-green-text transition-transform duration-200 hover:scale-105"
+                        >
+                          {replacement}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </li>
               ))}

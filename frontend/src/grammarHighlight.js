@@ -41,7 +41,14 @@ function decorationsFromMatches(doc, matches, map) {
       continue;
     }
     const to = (lastCharPos ?? from) + 1;
-    decorations.push(Decoration.inline(from, to, { class: "lex-error" }));
+    decorations.push(
+      Decoration.inline(
+        from,
+        to,
+        { class: "lex-error", "data-error-id": String(match.id) },
+        { id: match.id },
+      ),
+    );
   }
   return DecorationSet.create(doc, decorations);
 }
@@ -59,6 +66,39 @@ export function clearGrammarDecorations(editor) {
   editor.view.dispatch(tr);
 }
 
+// Finds where a given error currently sits in the document. We look it up by
+// id from the live decoration set so the range stays correct even if earlier
+// edits or applied fixes have shifted everything around.
+export function findErrorRange(editor, id) {
+  const set = grammarPluginKey.getState(editor.state);
+  if (!set) {
+    return null;
+  }
+  const found = set.find().find((deco) => deco.spec && deco.spec.id === id);
+  if (!found) {
+    return null;
+  }
+  return { from: found.from, to: found.to };
+}
+
+export function applySuggestion(editor, id, replacement) {
+  const range = findErrorRange(editor, id);
+  if (!range) {
+    return;
+  }
+  editor
+    .chain()
+    .focus()
+    .insertContentAt({ from: range.from, to: range.to }, replacement)
+    .command(({ tr, dispatch }) => {
+      if (dispatch) {
+        tr.setMeta(grammarPluginKey, { removeId: id });
+      }
+      return true;
+    })
+    .run();
+}
+
 export const GrammarHighlight = Extension.create({
   name: "grammarHighlight",
 
@@ -72,11 +112,17 @@ export const GrammarHighlight = Extension.create({
           },
           apply(tr, old) {
             const meta = tr.getMeta(grammarPluginKey);
-            if (meta) {
+            if (meta && meta.decorations) {
               return meta.decorations;
             }
-            // Keep existing squiggles positioned correctly as the user edits.
-            return old.map(tr.mapping, tr.doc);
+            let set = old.map(tr.mapping, tr.doc);
+            if (meta && meta.removeId != null) {
+              const gone = set
+                .find()
+                .filter((deco) => deco.spec && deco.spec.id === meta.removeId);
+              set = set.remove(gone);
+            }
+            return set;
           },
         },
         props: {

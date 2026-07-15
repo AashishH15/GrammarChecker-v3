@@ -4,12 +4,14 @@ import StarterKit from "@tiptap/starter-kit";
 import Toolbar from "./Toolbar.jsx";
 import Editor from "./Editor.jsx";
 import ReviewPanel from "./ReviewPanel.jsx";
+import GrammarTooltip from "./GrammarTooltip.jsx";
 import { checkGrammar } from "./api.js";
 import {
   GrammarHighlight,
   buildTextWithMap,
   applyGrammarDecorations,
   clearGrammarDecorations,
+  applySuggestion,
 } from "./grammarHighlight.js";
 
 const storageKey = "lexicon:document";
@@ -28,6 +30,7 @@ export default function App() {
   const [selectedText, setSelectedText] = useState("");
   const [activeTool, setActiveTool] = useState("");
   const [grammarMatches, setGrammarMatches] = useState([]);
+  const [hoveredError, setHoveredError] = useState(null);
 
   const editor = useEditor({
     extensions: [StarterKit, GrammarHighlight],
@@ -55,14 +58,44 @@ export default function App() {
     };
   }, [editor]);
 
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+    const dom = editor.view.dom;
+    const handleOver = (event) => {
+      const target = event.target.closest(".lex-error");
+      if (!target) {
+        return;
+      }
+      const id = Number(target.getAttribute("data-error-id"));
+      const rect = target.getBoundingClientRect();
+      setHoveredError({ id, rect });
+    };
+    dom.addEventListener("mouseover", handleOver);
+    return () => {
+      dom.removeEventListener("mouseover", handleOver);
+    };
+  }, [editor]);
+
   async function runGrammarCheck() {
     if (!editor) {
       return;
     }
     const { text, map } = buildTextWithMap(editor.state.doc);
-    const matches = await checkGrammar(text);
+    const rawMatches = await checkGrammar(text);
+    const matches = rawMatches.map((match, i) => ({ ...match, id: i }));
     setGrammarMatches(matches);
     applyGrammarDecorations(editor, matches, map);
+  }
+
+  function handleApplySuggestion(match, replacement) {
+    if (!editor) {
+      return;
+    }
+    applySuggestion(editor, match.id, replacement);
+    setGrammarMatches((current) => current.filter((m) => m.id !== match.id));
+    setHoveredError(null);
   }
 
   function handleToolClick(name) {
@@ -103,9 +136,11 @@ export default function App() {
             selectedText={selectedText}
             activeTool={activeTool}
             grammarMatches={grammarMatches}
+            onApply={handleApplySuggestion}
             onClear={() => {
               setActiveTool("");
               setGrammarMatches([]);
+              setHoveredError(null);
               if (editor) {
                 clearGrammarDecorations(editor);
               }
@@ -113,6 +148,15 @@ export default function App() {
           />
         </aside>
       </main>
+
+      {hoveredError && (
+        <GrammarTooltip
+          match={grammarMatches.find((m) => m.id === hoveredError.id)}
+          rect={hoveredError.rect}
+          onApply={handleApplySuggestion}
+          onDismiss={() => setHoveredError(null)}
+        />
+      )}
     </div>
   );
 }
