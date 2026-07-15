@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useState, useEffect, useRef } from "react";
+import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { ProofreadShortcut } from "./proofreadShortcut.js";
 import Toolbar from "./Toolbar.jsx";
 import Editor from "./Editor.jsx";
 import ReviewPanel from "./ReviewPanel.jsx";
@@ -16,6 +17,7 @@ import {
   applySuggestion,
   dismissError,
   focusError,
+  findErrorAt,
 } from "./grammarHighlight.js";
 
 function categoryLabel(match) {
@@ -63,14 +65,25 @@ export default function App() {
   const [activeTool, setActiveTool] = useState("");
   const [grammarMatches, setGrammarMatches] = useState([]);
   const [hoveredError, setHoveredError] = useState(null);
+  const [activeErrorId, setActiveErrorId] = useState(null);
   const [language, setLanguage] = useState(loadLanguage);
   const [fontSize, setFontSize] = useState(loadFontSize);
   const [focusMode, setFocusMode] = useState(loadFocusMode);
   const [editorFocused, setEditorFocused] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  const proofreadRef = useRef(() => {});
+  const activeErrorRef = useRef(null);
+  const matchesRef = useRef([]);
+
   const editor = useEditor({
-    extensions: [StarterKit, GrammarHighlight],
+    extensions: [
+      StarterKit,
+      GrammarHighlight,
+      ProofreadShortcut.configure({
+        onProofread: () => proofreadRef.current(),
+      }),
+    ],
     editorProps: {
       attributes: {
         spellcheck: "false",
@@ -87,15 +100,33 @@ export default function App() {
       return;
     }
     const syncSelection = () => setSelectedText(selectionText(editor));
+    const syncActiveError = () => {
+      const id = findErrorAt(editor, editor.state.selection.from);
+      activeErrorRef.current = id;
+      setActiveErrorId(id);
+      // Re-emphasize the squiggle under the caret so the user can see which
+      // suggestion Ctrl/Cmd+Alt+A / +D will target.
+      setGrammarMatches((current) => {
+        if (current.length === 0) {
+          return current;
+        }
+        applyGrammarDecorations(editor, current, buildTextWithMap(editor.state.doc).map, id);
+        return current;
+      });
+    };
     const handleFocus = () => setEditorFocused(true);
     const handleBlur = () => setEditorFocused(false);
     editor.on("selectionUpdate", syncSelection);
+    editor.on("selectionUpdate", syncActiveError);
     editor.on("update", syncSelection);
+    editor.on("update", syncActiveError);
     editor.on("focus", handleFocus);
     editor.on("blur", handleBlur);
     return () => {
       editor.off("selectionUpdate", syncSelection);
+      editor.off("selectionUpdate", syncActiveError);
       editor.off("update", syncSelection);
+      editor.off("update", syncActiveError);
       editor.off("focus", handleFocus);
       editor.off("blur", handleBlur);
     };
@@ -134,7 +165,7 @@ export default function App() {
       category: categoryLabel(match),
     }));
     setGrammarMatches(matches);
-    applyGrammarDecorations(editor, matches, map);
+    applyGrammarDecorations(editor, matches, map, activeErrorId);
   }
 
   function handleApplySuggestion(match, replacement) {
@@ -142,7 +173,14 @@ export default function App() {
       return;
     }
     applySuggestion(editor, match.id, replacement);
-    setGrammarMatches((current) => current.filter((m) => m.id !== match.id));
+    setGrammarMatches((current) => {
+      const next = current.filter((m) => m.id !== match.id);
+      if (next.length === 0) {
+        setActiveErrorId(null);
+        activeErrorRef.current = null;
+      }
+      return next;
+    });
     setHoveredError(null);
   }
 
@@ -151,7 +189,14 @@ export default function App() {
       return;
     }
     dismissError(editor, match.id);
-    setGrammarMatches((current) => current.filter((m) => m.id !== match.id));
+    setGrammarMatches((current) => {
+      const next = current.filter((m) => m.id !== match.id);
+      if (next.length === 0) {
+        setActiveErrorId(null);
+        activeErrorRef.current = null;
+      }
+      return next;
+    });
     setHoveredError(null);
   }
 
@@ -186,6 +231,55 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language]);
 
+  // Keep a live ref of the current matches and active id so the global
+  // keydown handler always reads fresh values instead of a stale closure.
+  useEffect(() => {
+    matchesRef.current = grammarMatches;
+  }, [grammarMatches]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const key = event.key.toLowerCase();
+
+      if (event.key === "Escape") {
+        setSettingsOpen((current) => (current ? false : current));
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key === ",") {
+        event.preventDefault();
+        setSettingsOpen((current) => !current);
+        return;
+      }
+
+      // Accept / dismiss the suggestion under the caret when one is active,
+      // otherwise fall back to the first card in the stream. Values are read
+      // through refs so this handler never acts on a stale closure.
+      if ((event.ctrlKey || event.metaKey) && event.altKey && (key === "a" || key === "d")) {
+        const matches = matchesRef.current;
+        const activeId = activeErrorRef.current;
+        const target =
+          (activeId != null && matches.find((m) => m.id === activeId)) ||
+          matches[0];
+        if (!target) {
+          return;
+        }
+        event.preventDefault();
+        if (key === "a") {
+          const replacement = target.replacements[0];
+          if (replacement) {
+            handleApplySuggestion(target, replacement);
+          }
+        } else {
+          handleDismiss(target);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editor]);
+
   function handleToolClick(name) {
     const nextTool = activeTool === name ? "" : name;
     setActiveTool(nextTool);
@@ -194,10 +288,19 @@ export default function App() {
         runGrammarCheck();
       } else if (editor) {
         setGrammarMatches([]);
+        setActiveErrorId(null);
+        activeErrorRef.current = null;
         clearGrammarDecorations(editor);
       }
     }
   }
+
+  function triggerProofread() {
+    setActiveTool("Proofread");
+    runGrammarCheck();
+  }
+
+  proofreadRef.current = triggerProofread;
 
   const dimmed = focusMode && editorFocused && grammarMatches.length === 0;
   const panelDim =
@@ -257,6 +360,8 @@ export default function App() {
             onClear={() => {
               setActiveTool("");
               setGrammarMatches([]);
+              setActiveErrorId(null);
+              activeErrorRef.current = null;
               setHoveredError(null);
               if (editor) {
                 clearGrammarDecorations(editor);

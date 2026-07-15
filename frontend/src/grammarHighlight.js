@@ -32,7 +32,7 @@ export function buildTextWithMap(doc) {
   return { text, map };
 }
 
-function decorationsFromMatches(doc, matches, map) {
+function decorationsFromMatches(doc, matches, map, activeId) {
   const decorations = [];
   for (const match of matches) {
     const from = map[match.offset];
@@ -41,11 +41,15 @@ function decorationsFromMatches(doc, matches, map) {
       continue;
     }
     const to = (lastCharPos ?? from) + 1;
+    const isActive = activeId != null && match.id === activeId;
     decorations.push(
       Decoration.inline(
         from,
         to,
-        { class: "lex-error", "data-error-id": String(match.id) },
+        {
+          class: isActive ? "lex-error lex-error-active" : "lex-error",
+          "data-error-id": String(match.id),
+        },
         { id: match.id },
       ),
     );
@@ -53,10 +57,31 @@ function decorationsFromMatches(doc, matches, map) {
   return DecorationSet.create(doc, decorations);
 }
 
-export function applyGrammarDecorations(editor, matches, map) {
-  const decorations = decorationsFromMatches(editor.state.doc, matches, map);
+export function applyGrammarDecorations(editor, matches, map, activeId) {
+  const decorations = decorationsFromMatches(
+    editor.state.doc,
+    matches,
+    map,
+    activeId,
+  );
   const tr = editor.state.tr.setMeta(grammarPluginKey, { decorations });
   editor.view.dispatch(tr);
+}
+
+// Returns the id of the error whose range currently contains the given
+// document position, or null when the caret isn't inside any flagged span.
+export function findErrorAt(editor, pos) {
+  const set = grammarPluginKey.getState(editor.state);
+  if (!set) {
+    return null;
+  }
+  const found = set.find().find((deco) => {
+    if (!deco.spec || deco.spec.flash || deco.spec.id == null) {
+      return false;
+    }
+    return deco.from <= pos && pos <= deco.to;
+  });
+  return found ? found.spec.id : null;
 }
 
 export function clearGrammarDecorations(editor) {

@@ -67,6 +67,11 @@
     cursor: pointer;
   }
 
+  .ProseMirror .lex-error-active {
+    background-color: #f8c9c8;
+    box-shadow: 0 0 0 1px #9f2f2d;
+  }
+
   .ProseMirror .lex-error-flash {
     border-radius: 2px;
     animation: lex-error-pulse 1200ms ease-in-out;
@@ -115,8 +120,45 @@
     animation: lex-card-in 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
+  .lex-kbd {
+    display: inline-block;
+    border: 1px solid #eaeaea;
+    border-radius: 4px;
+    background: #f7f6f3;
+    padding: 1px 6px;
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #111111;
+  }
+
   .lex-pop {
     animation: lex-pop-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .lex-fade-scroll {
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 16px,
+      #000 calc(100% - 16px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 16px,
+      #000 calc(100% - 16px),
+      transparent 100%
+    );
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 
   @keyframes lex-pop-in {
