@@ -94,6 +94,12 @@ export default function App() {
   const proofreadRef = useRef(() => {});
   const activeErrorRef = useRef(null);
   const matchesRef = useRef([]);
+  const activeToolRef = useRef(activeTool);
+  const scheduleCheckRef = useRef(() => {});
+  const checkTimer = useRef(null);
+  const userDictionaryRef = useRef(userDictionary);
+  activeToolRef.current = activeTool;
+  userDictionaryRef.current = userDictionary;
 
   const editor = useEditor({
     extensions: [
@@ -112,6 +118,7 @@ export default function App() {
     onUpdate: ({ editor }) => {
       localStorage.setItem(storageKey, editor.getHTML());
       setDocText(editor.getText());
+      scheduleCheckRef.current();
     },
   });
 
@@ -172,14 +179,17 @@ export default function App() {
     };
   }, [editor]);
 
-  async function runGrammarCheck() {
+  async function runGrammarCheck(silent = false, ignoreOverride = null) {
     if (!editor) {
       return;
     }
-    setChecking(true);
+    if (!silent) {
+      setChecking(true);
+    }
     try {
       const { text, map } = buildTextWithMap(editor.state.doc);
-      const rawMatches = await checkGrammar(text, language, userDictionary);
+      const ignore = ignoreOverride ?? userDictionaryRef.current;
+      const rawMatches = await checkGrammar(text, language, ignore);
     const matches = rawMatches.map((match, i) => ({
       ...match,
       id: i,
@@ -189,7 +199,9 @@ export default function App() {
     setGrammarMatches(matches);
     applyGrammarDecorations(editor, matches, map, activeErrorId);
     } finally {
-      setChecking(false);
+      if (!silent) {
+        setChecking(false);
+      }
     }
   }
 
@@ -207,6 +219,7 @@ export default function App() {
       return next;
     });
     setHoveredError(null);
+    runGrammarCheck();
   }
 
   function handleDismiss(match) {
@@ -223,6 +236,7 @@ export default function App() {
       return next;
     });
     setHoveredError(null);
+    runGrammarCheck();
   }
 
   function handleAddToDictionary(match) {
@@ -246,7 +260,7 @@ export default function App() {
       return remaining;
     });
     setHoveredError(null);
-    runGrammarCheck();
+    runGrammarCheck(false, next);
   }
 
   function handleLocate(match) {
@@ -355,6 +369,23 @@ export default function App() {
   }
 
   proofreadRef.current = triggerProofread;
+
+  // Reactive sync: after 800ms of typing silence, re-run the grammar pass in
+  // the background without flashing the loading state. Only fires while
+  // Proofread is active, so the editor stays quiet otherwise.
+  function scheduleCheck() {
+    if (activeToolRef.current !== "Proofread") {
+      return;
+    }
+    if (checkTimer.current) {
+      clearTimeout(checkTimer.current);
+    }
+    checkTimer.current = setTimeout(() => {
+      runGrammarCheck(true);
+    }, 800);
+  }
+
+  scheduleCheckRef.current = scheduleCheck;
 
   const clarityScore = Math.max(0, 100 - grammarMatches.length * 4);
 
