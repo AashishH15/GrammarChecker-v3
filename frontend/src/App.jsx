@@ -37,6 +37,7 @@ const languageKey = "lexicon:language";
 const fontSizeKey = "lexicon:fontSize";
 const focusModeKey = "lexicon:focusMode";
 const lineSpacingKey = "lexicon:lineSpacing";
+const dictionaryKey = "lexicon:user_dictionary";
 
 function loadContent() {
   const saved = localStorage.getItem(storageKey);
@@ -60,6 +61,15 @@ function loadLineSpacing() {
   return Number(localStorage.getItem(lineSpacingKey)) || 1.6;
 }
 
+function loadDictionary() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(dictionaryKey));
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+}
+
 function selectionText(editor) {
   const { from, to } = editor.state.selection;
   return editor.state.doc.textBetween(from, to, " ");
@@ -76,6 +86,7 @@ export default function App() {
   const [fontSize, setFontSize] = useState(loadFontSize);
   const [focusMode, setFocusMode] = useState(loadFocusMode);
   const [lineSpacing, setLineSpacing] = useState(loadLineSpacing);
+  const [userDictionary, setUserDictionary] = useState(loadDictionary);
   const [editorFocused, setEditorFocused] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -166,7 +177,7 @@ export default function App() {
     setChecking(true);
     try {
       const { text, map } = buildTextWithMap(editor.state.doc);
-      const rawMatches = await checkGrammar(text, language);
+      const rawMatches = await checkGrammar(text, language, userDictionary);
     const matches = rawMatches.map((match, i) => ({
       ...match,
       id: i,
@@ -210,6 +221,30 @@ export default function App() {
       return next;
     });
     setHoveredError(null);
+  }
+
+  function handleAddToDictionary(match) {
+    const word = (match.original || "").trim();
+    if (!word || userDictionary.includes(word)) {
+      // Still remove the card locally even if it's already in the dictionary.
+      handleDismiss(match);
+      return;
+    }
+    const next = [...userDictionary, word];
+    setUserDictionary(next);
+    localStorage.setItem(dictionaryKey, JSON.stringify(next));
+    // Remove this card and re-run so any other occurrences of the word clear.
+    dismissError(editor, match.id);
+    setGrammarMatches((current) => {
+      const remaining = current.filter((m) => m.id !== match.id);
+      if (remaining.length === 0) {
+        setActiveErrorId(null);
+        activeErrorRef.current = null;
+      }
+      return remaining;
+    });
+    setHoveredError(null);
+    runGrammarCheck();
   }
 
   function handleLocate(match) {
@@ -374,6 +409,7 @@ export default function App() {
             checking={checking}
             onApply={handleApplySuggestion}
             onDismiss={handleDismiss}
+            onAddToDictionary={handleAddToDictionary}
             onLocate={handleLocate}
             onClear={() => {
               setActiveTool("");

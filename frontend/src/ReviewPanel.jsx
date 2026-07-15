@@ -8,6 +8,7 @@ export default function ReviewPanel({
   checking,
   onApply,
   onDismiss,
+  onAddToDictionary,
   onLocate,
   onClear,
 }) {
@@ -59,6 +60,7 @@ export default function ReviewPanel({
                 index={i}
                 onApply={onApply}
                 onDismiss={onDismiss}
+                onAddToDictionary={onAddToDictionary}
                 onLocate={onLocate}
               />
             ))}

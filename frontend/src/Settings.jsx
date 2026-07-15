@@ -142,7 +142,9 @@ export default function Settings({
               </p>
               <p className="mt-1 font-sans text-xs text-muted">
                 Fades the interface layout while typing to maximize core writing
-                concentration.
+                concentration. Disabled automatically whenever a tool is active
+                (Proofread, Rewrite, etc.), since both side panels are then in
+                use.
               </p>
             </div>
             <div className="pt-0.5">

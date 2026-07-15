@@ -36,10 +36,26 @@ def warm_up():
         _warm = False
 
 
-def check_text(text, language="en-US"):
+def _filter_ignored(matches, text, ignore):
+    """Drop matches whose flagged word is in the user's dictionary."""
+    if not ignore:
+        return matches
+    ignored = {word.lower() for word in ignore}
+    kept = []
+    for match in matches:
+        word = text[match["offset"] : match["offset"] + match["length"]].strip()
+        if word.lower() not in ignored:
+            kept.append(match)
+    return kept
+
+
+def check_text(text, language="en-US", ignore=None):
+    ignore = ignore or []
     if CHECK_URL:
-        return _check_remote(text, language)
-    return _check_local(text, language)
+        matches = _check_remote(text, language)
+    else:
+        matches = _check_local(text, language)
+    return _filter_ignored(matches, text, ignore)
 
 
 def _check_remote(text, language):

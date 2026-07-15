@@ -1,3 +1,5 @@
+import { BookBookmark } from "@phosphor-icons/react";
+
 const categoryStyles = {
   Grammar: "bg-pale-blue text-pale-blue-text",
   Spelling: "bg-pale-yellow text-pale-yellow-text",
@@ -9,6 +11,7 @@ export default function SuggestionCard({
   index,
   onApply,
   onDismiss,
+  onAddToDictionary,
   onLocate,
 }) {
   const replacement = match.replacements[0];
@@ -44,7 +47,7 @@ export default function SuggestionCard({
         </p>
       </div>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex items-center gap-3">
         {replacement && (
           <button
             type="button"
@@ -66,6 +69,17 @@ export default function SuggestionCard({
           className="flex-1 rounded border border-hairline bg-transparent py-2 font-sans text-sm font-medium text-ink transition-transform duration-150 active:scale-[0.98]"
         >
           Dismiss
+        </button>
+        <button
+          type="button"
+          title="Add to Dictionary"
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddToDictionary(match);
+          }}
+          className="shrink-0 p-2 rounded-md text-[#787774] transition-colors hover:text-[#111111] active:scale-95"
+        >
+          <BookBookmark size={18} weight="bold" />
         </button>
       </div>
     </li>

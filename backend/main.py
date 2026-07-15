@@ -30,6 +30,7 @@ app.add_middleware(
 class GrammarRequest(BaseModel):
     text: str
     language: str = "en-US"
+    ignore: list[str] = []
 
 
 @app.get("/health")
@@ -39,5 +40,5 @@ def health():
 
 @app.post("/grammar/check")
 def grammar_check(request: GrammarRequest):
-    matches = check_text(request.text, request.language)
+    matches = check_text(request.text, request.language, request.ignore)
     return {"matches": matches}
