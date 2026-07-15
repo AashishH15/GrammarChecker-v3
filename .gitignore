@@ -18,6 +18,6 @@ build/
 # OS
 .DS_Store
 Thumbs.db
-AGENTS.md
-DESIGN.md
-Progress.md
+
+# Local-only project docs (not committed)
+Project Docs/
