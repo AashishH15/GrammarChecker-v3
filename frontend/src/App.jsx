@@ -87,6 +87,7 @@ export default function App() {
   const [focusMode, setFocusMode] = useState(loadFocusMode);
   const [lineSpacing, setLineSpacing] = useState(loadLineSpacing);
   const [userDictionary, setUserDictionary] = useState(loadDictionary);
+  const [docText, setDocText] = useState("");
   const [editorFocused, setEditorFocused] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -110,6 +111,7 @@ export default function App() {
     content: loadContent(),
     onUpdate: ({ editor }) => {
       localStorage.setItem(storageKey, editor.getHTML());
+      setDocText(editor.getText());
     },
   });
 
@@ -354,6 +356,15 @@ export default function App() {
 
   proofreadRef.current = triggerProofread;
 
+  const clarityScore = Math.max(0, 100 - grammarMatches.length * 4);
+
+  const words = docText.trim().length ? docText.trim().split(/\s+/) : [];
+  const avgWordLength =
+    words.length > 0
+      ? words.reduce((sum, w) => sum + w.length, 0) / words.length
+      : 0;
+  const complexity = avgWordLength >= 5.2 ? "Advanced / Academic" : "Standard Prose";
+
   const dimmed = focusMode && editorFocused && grammarMatches.length === 0;
   const panelDim =
     "transition-opacity duration-700 ease-in-out " +
@@ -397,7 +408,13 @@ export default function App() {
         </aside>
 
         <section className="flex-1 min-w-0 p-6">
-          <Editor editor={editor} fontSize={fontSize} lineSpacing={lineSpacing} />
+          <Editor
+            editor={editor}
+            fontSize={fontSize}
+            lineSpacing={lineSpacing}
+            clarityScore={clarityScore}
+            complexity={complexity}
+          />
         </section>
 
         <aside className={"w-80 shrink-0 border-l border-hairline " + panelDim}>
