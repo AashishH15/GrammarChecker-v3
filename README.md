@@ -54,6 +54,18 @@ uvicorn main:app --reload
 
 The API is then available at http://localhost:8000.
 
+### Grammar engine (LanguageTool)
+
+The backend uses `language_tool_python`, which downloads and runs LanguageTool
+locally on first use. No separate server or Docker needed. Java is required
+(LanguageTool runs on the JVM); install it from java.com if absent.
+
+To point at an already-running LanguageTool server instead, set:
+
+```
+set LANGUAGETOOL_SERVER=http://localhost:8081
+```
+
 ## Running the frontend
 
 ```
