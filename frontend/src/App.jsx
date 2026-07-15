@@ -1,4 +1,6 @@
 import Toolbar from "./Toolbar.jsx";
+import Editor from "./Editor.jsx";
+import ReviewPanel from "./ReviewPanel.jsx";
 
 export default function App() {
   return (
@@ -18,15 +20,11 @@ export default function App() {
         </aside>
 
         <section className="flex-1 min-w-0 border-r border-hairline p-6">
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
-            Source Document
-          </p>
+          <Editor />
         </section>
 
         <aside className="w-80 shrink-0 p-4">
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
-            Review Panel
-          </p>
+          <ReviewPanel />
         </aside>
       </main>
     </div>
