@@ -387,14 +387,23 @@ export default function App() {
 
   scheduleCheckRef.current = scheduleCheck;
 
-  const clarityScore = Math.max(0, 100 - grammarMatches.length * 4);
+  const emptyDoc = docText.trim().length === 0;
+  const totalWords = emptyDoc ? 0 : docText.trim().split(/\s+/).length;
+  const errorRatio = totalWords > 0 ? grammarMatches.length / totalWords : 0;
+  const clarityScore = emptyDoc
+    ? null
+    : Math.max(0, Math.min(100, Math.round(100 - errorRatio * 100 * 12)));
 
-  const words = docText.trim().length ? docText.trim().split(/\s+/) : [];
+  const words = emptyDoc ? [] : docText.trim().split(/\s+/);
   const avgWordLength =
     words.length > 0
       ? words.reduce((sum, w) => sum + w.length, 0) / words.length
       : 0;
-  const complexity = avgWordLength >= 5.2 ? "Advanced / Academic" : "Standard Prose";
+  const complexity = emptyDoc
+    ? "N/A"
+    : avgWordLength >= 5.2
+      ? "Advanced / Academic"
+      : "Standard Prose";
 
   const dimmed = focusMode && editorFocused && grammarMatches.length === 0;
   const panelDim =
@@ -445,6 +454,8 @@ export default function App() {
             lineSpacing={lineSpacing}
             clarityScore={clarityScore}
             complexity={complexity}
+            emptyDoc={emptyDoc}
+            proofreadActive={activeTool === "Proofread"}
           />
         </section>
 
