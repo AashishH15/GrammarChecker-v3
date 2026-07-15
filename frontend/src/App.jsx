@@ -5,6 +5,8 @@ import Toolbar from "./Toolbar.jsx";
 import Editor from "./Editor.jsx";
 import ReviewPanel from "./ReviewPanel.jsx";
 import GrammarTooltip from "./GrammarTooltip.jsx";
+import Settings from "./Settings.jsx";
+import { Gear } from "@phosphor-icons/react";
 import { checkGrammar } from "./api.js";
 import {
   GrammarHighlight,
@@ -29,10 +31,15 @@ function categoryLabel(match) {
 }
 
 const storageKey = "lexicon:document";
+const languageKey = "lexicon:language";
 
 function loadContent() {
   const saved = localStorage.getItem(storageKey);
   return saved ?? "<p></p>";
+}
+
+function loadLanguage() {
+  return localStorage.getItem(languageKey) ?? "en-US";
 }
 
 function selectionText(editor) {
@@ -45,6 +52,8 @@ export default function App() {
   const [activeTool, setActiveTool] = useState("");
   const [grammarMatches, setGrammarMatches] = useState([]);
   const [hoveredError, setHoveredError] = useState(null);
+  const [language, setLanguage] = useState(loadLanguage);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const editor = useEditor({
     extensions: [StarterKit, GrammarHighlight],
@@ -97,7 +106,7 @@ export default function App() {
       return;
     }
     const { text, map } = buildTextWithMap(editor.state.doc);
-    const rawMatches = await checkGrammar(text);
+    const rawMatches = await checkGrammar(text, language);
     const matches = rawMatches.map((match, i) => ({
       ...match,
       id: i,
@@ -133,6 +142,20 @@ export default function App() {
     focusError(editor, match.id);
   }
 
+  function handleLanguageChange(nextLanguage) {
+    setLanguage(nextLanguage);
+    localStorage.setItem(languageKey, nextLanguage);
+  }
+
+  useEffect(() => {
+    if (activeTool === "Proofread") {
+      runGrammarCheck();
+    }
+    // Re-run the proofread pass whenever the language changes so the results
+    // reflect the newly selected variant.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
+
   function handleToolClick(name) {
     const nextTool = activeTool === name ? "" : name;
     setActiveTool(nextTool);
@@ -148,18 +171,39 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-canvas text-ink">
-      <header className="flex items-center px-6 h-14 border-b border-hairline">
+      <header className="flex items-center justify-between px-6 h-14 border-b border-hairline">
         <div className="leading-tight">
           <span className="block font-serif text-lg tracking-tight">Lexicon</span>
           <span className="block font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
             System Toolset V3.0
           </span>
         </div>
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(true)}
+          className="rounded px-2 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:text-ink"
+          aria-label="Open settings"
+        >
+          {language}
+        </button>
       </header>
 
       <main className="flex flex-1 min-h-0">
-        <aside className="w-64 shrink-0 border-r border-hairline p-4">
+        <aside className="flex w-64 shrink-0 flex-col justify-between border-r border-hairline p-4">
           <Toolbar editor={editor} activeTool={activeTool} onToolClick={handleToolClick} />
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="group mt-6 flex items-center gap-2.5 rounded px-2 py-1.5 text-left text-sm text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
+            aria-label="Open settings"
+          >
+            <Gear
+              size={16}
+              weight="bold"
+              className="transition-transform duration-200 group-hover:rotate-45"
+            />
+            <span>Settings</span>
+          </button>
         </aside>
 
         <section className="flex-1 min-w-0 p-6">
@@ -195,6 +239,13 @@ export default function App() {
           onDismiss={() => setHoveredError(null)}
         />
       )}
+
+      <Settings
+        open={settingsOpen}
+        language={language}
+        onLanguageChange={handleLanguageChange}
+        onClose={() => setSettingsOpen(false)}
+      />
     </div>
   );
 }
