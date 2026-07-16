@@ -6,6 +6,7 @@ import Strike from "@tiptap/extension-strike";
 import Highlight from "@tiptap/extension-highlight";
 import Superscript from "@tiptap/extension-superscript";
 import Subscript from "@tiptap/extension-subscript";
+import TextAlign from "@tiptap/extension-text-align";
 import { ProofreadShortcut } from "./proofreadShortcut.js";
 import { detectTone } from "./toneScore.js";
 import Toolbar from "./Toolbar.jsx";
@@ -116,6 +117,7 @@ export default function App() {
       Highlight.configure({ multicolor: false }),
       Superscript,
       Subscript,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       GrammarHighlight,
       ProofreadShortcut.configure({
         onProofread: () => proofreadRef.current(),

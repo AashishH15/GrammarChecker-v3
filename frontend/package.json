@@ -15,6 +15,7 @@
     "@tiptap/extension-highlight": "3.27.4",
     "@tiptap/extension-subscript": "3.27.4",
     "@tiptap/extension-superscript": "3.27.4",
+    "@tiptap/extension-text-align": "3.27.4",
     "@tiptap/pm": "^3.27.4",
     "@tiptap/react": "^3.27.4",
     "@tiptap/starter-kit": "^3.27.4",

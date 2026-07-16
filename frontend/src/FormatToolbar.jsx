@@ -11,6 +11,10 @@ import {
   ListNumbers,
   TextHOne,
   TextHTwo,
+  TextAlignLeft,
+  TextAlignCenter,
+  TextAlignRight,
+  TextAlignJustify,
 } from "@phosphor-icons/react";
 
 const buttons = [
@@ -25,6 +29,10 @@ const buttons = [
   { icon: ListNumbers, label: "Numbered list", action: (e) => e.chain().focus().toggleOrderedList().run(), isActive: (e) => e.isActive("orderedList") },
   { icon: TextHOne, label: "Heading 1", action: (e) => e.chain().focus().toggleHeading({ level: 1 }).run(), isActive: (e) => e.isActive("heading", { level: 1 }) },
   { icon: TextHTwo, label: "Heading 2", action: (e) => e.chain().focus().toggleHeading({ level: 2 }).run(), isActive: (e) => e.isActive("heading", { level: 2 }) },
+  { icon: TextAlignLeft, label: "Align left", action: (e) => e.chain().focus().setTextAlign("left").run(), isActive: (e) => e.isActive({ textAlign: "left" }) },
+  { icon: TextAlignCenter, label: "Align center", action: (e) => e.chain().focus().setTextAlign("center").run(), isActive: (e) => e.isActive({ textAlign: "center" }) },
+  { icon: TextAlignRight, label: "Align right", action: (e) => e.chain().focus().setTextAlign("right").run(), isActive: (e) => e.isActive({ textAlign: "right" }) },
+  { icon: TextAlignJustify, label: "Justify", action: (e) => e.chain().focus().setTextAlign("justify").run(), isActive: (e) => e.isActive({ textAlign: "justify" }) },
 ];
 
 export default function FormatToolbar({ editor }) {
