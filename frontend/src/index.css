@@ -72,6 +72,13 @@
     box-shadow: 0 0 0 1px #9f2f2d;
   }
 
+  .ProseMirror mark {
+    background-color: #fce79a;
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
   .ProseMirror .lex-error-flash {
     border-radius: 2px;
     animation: lex-error-pulse 1200ms ease-in-out;
