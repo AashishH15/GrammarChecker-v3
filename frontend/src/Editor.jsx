@@ -1,6 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, forwardRef } from "react";
 import { EditorContent } from "@tiptap/react";
-import { Info, CaretUp, CaretDown } from "@phosphor-icons/react";
+import { getMarkRange } from "@tiptap/core";
+import {
+  Info,
+  CaretUp,
+  CaretDown,
+  ArrowSquareOut,
+  Pen,
+  LinkBreak,
+} from "@phosphor-icons/react";
 import FormatToolbar from "./FormatToolbar.jsx";
 
 export default function Editor({
@@ -23,6 +31,8 @@ export default function Editor({
   });
 
   const detailed = showBreakdown && !collapsed;
+  const [linkPopover, setLinkPopover] = useState(null);
+  const linkPopoverRef = useRef(null);
 
   function toggleCollapsed() {
     setCollapsed((current) => {
@@ -30,6 +40,115 @@ export default function Editor({
       localStorage.setItem("lexicon:metricsCollapsed", String(next));
       return next;
     });
+  }
+
+  // Hover handling on links inside the editor:
+  //  - Hovering a link shows the inline edit/delete popover.
+  //  - Clicking the link itself uses the browser's native behavior
+  //    (opens in the same tab; Ctrl/Cmd+Click opens in a new tab), so we
+  //    don't fight the browser over navigation.
+  //  - Moving away from the link (with a short grace period) closes it.
+  const closeTimer = useRef(null);
+
+  function scheduleClose() {
+    clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setLinkPopover(null), 160);
+  }
+
+  function cancelClose() {
+    clearTimeout(closeTimer.current);
+  }
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+    const dom = editor.view.dom;
+    const handleOver = (event) => {
+      const anchor = event.target.closest("a");
+      if (!anchor || !anchor.href) {
+        scheduleClose();
+        return;
+      }
+      cancelClose();
+      const rect = anchor.getBoundingClientRect();
+      // Resolve the link's exact document range so edits/removals target
+      // this link even when the editor caret is elsewhere.
+      const pos = editor.view.posAtDOM(anchor, 0);
+      const $pos = editor.state.doc.resolve(pos);
+      const range = getMarkRange($pos, editor.state.schema.marks.link);
+      setLinkPopover({
+        href: anchor.getAttribute("href") || "",
+        rect: { top: rect.top, left: rect.left, bottom: rect.bottom },
+        from: range ? range.from : null,
+        to: range ? range.to : null,
+      });
+    };
+    dom.addEventListener("mouseover", handleOver);
+    return () => {
+      dom.removeEventListener("mouseover", handleOver);
+      clearTimeout(closeTimer.current);
+    };
+  }, [editor]);
+
+  // Click-away close: dismiss the popover when clicking outside it.
+  useEffect(() => {
+    if (!linkPopover) {
+      return;
+    }
+    const handleAway = (event) => {
+      if (
+        linkPopoverRef.current &&
+        !linkPopoverRef.current.contains(event.target)
+      ) {
+        setLinkPopover(null);
+      }
+    };
+    document.addEventListener("mousedown", handleAway);
+    return () => document.removeEventListener("mousedown", handleAway);
+  }, [linkPopover]);
+
+  function requestLink(editorInstance) {
+    if (!editorInstance) {
+      return;
+    }
+    const { from, to } = editorInstance.state.selection;
+    if (from === to) {
+      return;
+    }
+    const rect = editorInstance.view.coordsAtPos(from);
+    setLinkPopover({
+      href: editorInstance.getAttributes("link").href || "",
+      rect: { top: rect.top, left: rect.left, bottom: rect.bottom },
+      addMode: true,
+    });
+  }
+
+  function applyLink(href) {
+    const url = href.trim();
+    if (!url || !linkPopover || linkPopover.from == null) {
+      return;
+    }
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: linkPopover.from, to: linkPopover.to })
+      .setLink({ href: url })
+      .run();
+    setLinkPopover(null);
+  }
+
+  function removeLink() {
+    if (!linkPopover || linkPopover.from == null) {
+      return;
+    }
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: linkPopover.from, to: linkPopover.to })
+      .unsetLink()
+      .run();
+    setLinkPopover(null);
   }
 
   return (
@@ -238,7 +357,7 @@ export default function Editor({
         </div>
       )}
 
-      <FormatToolbar editor={editor} />
+      <FormatToolbar editor={editor} onRequestLink={requestLink} />
 
       <div className="lex-scroll flex-1 overflow-auto rounded border border-hairline bg-white">
         <EditorContent
@@ -247,6 +366,101 @@ export default function Editor({
           className="h-full px-4 py-3 text-ink [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-full"
         />
       </div>
+
+      {linkPopover && (
+        <LinkPopover
+          ref={linkPopoverRef}
+          data={linkPopover}
+          onOpen={() =>
+            linkPopover.href &&
+            window.open(linkPopover.href, "_blank", "noopener,noreferrer")
+          }
+          onApply={applyLink}
+          onRemove={removeLink}
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+          onClose={() => setLinkPopover(null)}
+        />
+      )}
     </div>
   );
 }
+
+const LinkPopover = forwardRef(function LinkPopover(
+  { data, onOpen, onApply, onRemove, onMouseEnter, onMouseLeave, onClose },
+  ref,
+) {
+  const [value, setValue] = useState(data.href || "");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, []);
+
+  const style = {
+    position: "fixed",
+    top: data.rect.bottom + 6,
+    left: data.rect.left,
+    zIndex: 50,
+  };
+
+  return (
+    <div
+      ref={ref}
+      style={style}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      className="lex-pop flex w-72 items-center gap-2 rounded-lg border border-hairline bg-white p-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+    >
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            onApply(value);
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            onClose();
+          }
+        }}
+        placeholder="https://example.com"
+        className="min-w-0 flex-1 rounded border border-hairline bg-canvas px-2 py-1.5 font-sans text-xs text-ink outline-none focus:border-muted"
+      />
+      {data.href && (
+        <button
+          type="button"
+          title="Open link"
+          aria-label="Open link"
+          onClick={onOpen}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
+        >
+          <ArrowSquareOut size={16} weight="bold" />
+        </button>
+      )}
+      <button
+        type="button"
+        title="Save link"
+        aria-label="Save link"
+        onClick={() => onApply(value)}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
+      >
+        <Pen size={16} weight="bold" />
+      </button>
+      <button
+        type="button"
+        title="Remove link"
+        aria-label="Remove link"
+        onClick={onRemove}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted transition-colors hover:bg-pale-red hover:text-pale-red-text"
+      >
+        <LinkBreak size={16} weight="bold" />
+      </button>
+    </div>
+  );
+});

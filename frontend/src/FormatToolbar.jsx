@@ -25,6 +25,7 @@ import {
   Quotes,
   ArrowCounterClockwise,
   ArrowClockwise,
+  Link as LinkIcon,
 } from "@phosphor-icons/react";
 
 const buttons = [
@@ -250,7 +251,32 @@ function AlignMenu({ editor }) {
   );
 }
 
-export default function FormatToolbar({ editor }) {
+function LinkButton({ editor, onRequestLink }) {
+  const active = useEditorState({
+    editor,
+    selector: ({ editor: e }) => e.isActive("link"),
+  });
+
+  return (
+    <button
+      type="button"
+      title="Insert link"
+      aria-label="Insert link"
+      aria-pressed={active}
+      onClick={() => onRequestLink(editor)}
+      className={
+        "group flex h-8 w-8 items-center justify-center rounded border text-ink transition-colors " +
+        (active
+          ? "border-ink bg-ink text-white"
+          : "border-transparent hover:bg-hairline/60")
+      }
+    >
+      <LinkIcon size={16} weight="bold" className="transition-transform duration-200 group-hover:scale-125" />
+    </button>
+  );
+}
+
+export default function FormatToolbar({ editor, onRequestLink }) {
   const state = useEditorState({
     editor,
     selector: (snapshot) => {
@@ -293,6 +319,7 @@ export default function FormatToolbar({ editor }) {
 
       <HeadingMenu editor={editor} />
       <AlignMenu editor={editor} />
+      <LinkButton editor={editor} onRequestLink={onRequestLink} />
     </div>
   );
 }

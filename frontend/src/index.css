@@ -100,6 +100,14 @@
     color: #787774;
   }
 
+  .ProseMirror a {
+    color: #1f6c9f;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-color: #e1f3fe;
+    cursor: pointer;
+  }
+
   .ProseMirror .lex-error {
     background-color: #fdebec;
     color: #9f2f2d;
