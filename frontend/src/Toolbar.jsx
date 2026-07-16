@@ -8,6 +8,13 @@ import {
   ListChecks,
   ListBullets,
   Table,
+  GraduationCap,
+  Suitcase,
+  TShirt,
+  Sparkle,
+  Heart,
+  Megaphone,
+  Smiley,
 } from "@phosphor-icons/react";
 
 const groups = [
@@ -24,6 +31,13 @@ const groups = [
     tools: [
       { name: "Friendly", icon: ChatCircleText },
       { name: "Professional", icon: Briefcase },
+      { name: "Academic", icon: GraduationCap },
+      { name: "Formal", icon: Suitcase },
+      { name: "Casual", icon: TShirt },
+      { name: "Playful", icon: Sparkle },
+      { name: "Empathetic", icon: Heart },
+      { name: "Persuasive", icon: Megaphone },
+      { name: "Humorous", icon: Smiley },
     ],
   },
   {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { ProofreadShortcut } from "./proofreadShortcut.js";
+import { detectTone } from "./toneScore.js";
 import Toolbar from "./Toolbar.jsx";
 import Editor from "./Editor.jsx";
 import ReviewPanel from "./ReviewPanel.jsx";
@@ -88,6 +89,7 @@ export default function App() {
   const [lineSpacing, setLineSpacing] = useState(loadLineSpacing);
   const [userDictionary, setUserDictionary] = useState(loadDictionary);
   const [docText, setDocText] = useState("");
+  const [toneResult, setToneResult] = useState(null);
   const [editorFocused, setEditorFocused] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -118,6 +120,7 @@ export default function App() {
     onUpdate: ({ editor }) => {
       localStorage.setItem(storageKey, editor.getHTML());
       setDocText(editor.getText());
+      setToneResult(detectTone(editor.getText()));
       scheduleCheckRef.current();
     },
   });
@@ -394,16 +397,23 @@ export default function App() {
     ? null
     : Math.max(0, Math.min(100, Math.round(100 - errorRatio * 100 * 12)));
 
-  const words = emptyDoc ? [] : docText.trim().split(/\s+/);
-  const avgWordLength =
-    words.length > 0
-      ? words.reduce((sum, w) => sum + w.length, 0) / words.length
-      : 0;
-  const complexity = emptyDoc
-    ? "N/A"
-    : avgWordLength >= 5.2
-      ? "Advanced / Academic"
-      : "Standard Prose";
+  function clarityGrade(score) {
+    if (score >= 95) return "EXCELLENT";
+    if (score >= 85) return "GREAT";
+    if (score >= 65) return "GOOD";
+    if (score >= 40) return "FAIR";
+    return "NEEDS IMPROVEMENT";
+  }
+
+  const clarityDensity = emptyDoc
+    ? null
+    : errorRatio <= 0.02
+      ? "error density low"
+      : errorRatio <= 0.06
+        ? "error density moderate"
+        : "error density high";
+
+  const clarityGradeLabel = clarityScore == null ? null : clarityGrade(clarityScore);
 
   const dimmed = focusMode && editorFocused && grammarMatches.length === 0;
   const panelDim =
@@ -453,9 +463,12 @@ export default function App() {
             fontSize={fontSize}
             lineSpacing={lineSpacing}
             clarityScore={clarityScore}
-            complexity={complexity}
+            clarityGrade={clarityGradeLabel}
+            clarityDensity={clarityDensity}
+            grammarMatches={grammarMatches}
             emptyDoc={emptyDoc}
             proofreadActive={activeTool === "Proofread"}
+            toneResult={toneResult}
           />
         </section>
 
