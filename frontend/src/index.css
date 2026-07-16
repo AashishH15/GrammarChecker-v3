@@ -168,6 +168,89 @@
     cursor: pointer;
   }
 
+  /* Inline code (StarterKit `code` mark) */
+  .ProseMirror code {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.88em;
+    background: #f7f6f3;
+    border: 1px solid #eaeaea;
+    border-radius: 4px;
+    padding: 0.05em 0.35em;
+    color: #111111;
+  }
+
+  /* Fenced code block (CodeBlockLowlight) */
+  .ProseMirror pre {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    background: #f7f6f3;
+    border: 1px solid #eaeaea;
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+    margin: 0.8em 0;
+    overflow-x: auto;
+    color: #111111;
+  }
+
+  .ProseMirror pre code {
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+  }
+
+  /* Lowlight syntax token colors — desaturated to suit the editorial palette */
+  .ProseMirror pre code .hljs-comment,
+  .ProseMirror pre code .hljs-quote {
+    color: #787774;
+    font-style: italic;
+  }
+
+  .ProseMirror pre code .hljs-keyword,
+  .ProseMirror pre code .hljs-selector-tag,
+  .ProseMirror pre code .hljs-built_in,
+  .ProseMirror pre code .hljs-name,
+  .ProseMirror pre code .hljs-tag {
+    color: #1f6c9f;
+  }
+
+  .ProseMirror pre code .hljs-string,
+  .ProseMirror pre code .hljs-title,
+  .ProseMirror pre code .hljs-section,
+  .ProseMirror pre code .hljs-attribute,
+  .ProseMirror pre code .hljs-literal,
+  .ProseMirror pre code .hljs-template-tag,
+  .ProseMirror pre code .hljs-template-variable,
+  .ProseMirror pre code .hljs-type,
+  .ProseMirror pre code .hljs-addition {
+    color: #346538;
+  }
+
+  .ProseMirror pre code .hljs-number,
+  .ProseMirror pre code .hljs-symbol,
+  .ProseMirror pre code .hljs-bullet,
+  .ProseMirror pre code .hljs-link,
+  .ProseMirror pre code .hljs-meta,
+  .ProseMirror pre code .hljs-selector-id,
+  .ProseMirror pre code .hljs-selector-class {
+    color: #956400;
+  }
+
+  .ProseMirror pre code .hljs-emphasis {
+    font-style: italic;
+  }
+
+  .ProseMirror pre code .hljs-strong {
+    font-weight: 600;
+  }
+
+  .ProseMirror pre code .hljs-deletion {
+    color: #9f2f2d;
+  }
+
   .ProseMirror .lex-error {
     background-color: #fdebec;
     color: #9f2f2d;

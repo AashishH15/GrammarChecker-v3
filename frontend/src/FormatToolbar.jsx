@@ -24,6 +24,7 @@ import {
   TextAlignRight,
   TextAlignJustify,
   Quotes,
+  Code,
   ArrowCounterClockwise,
   ArrowClockwise,
   Link as LinkIcon,
@@ -40,6 +41,7 @@ const buttons = [
   { icon: TextSuperscript, label: "Superscript", action: (e) => e.chain().focus().toggleSuperscript().run(), isActive: (e) => e.isActive("superscript") },
   { icon: TextSubscript, label: "Subscript", action: (e) => e.chain().focus().toggleSubscript().run(), isActive: (e) => e.isActive("subscript") },
   { icon: Quotes, label: "Blockquote", action: (e) => e.chain().focus().toggleBlockquote().run(), isActive: (e) => e.isActive("blockquote") },
+  { icon: Code, label: "Code block", action: (e) => e.chain().focus().toggleCodeBlock().run(), isActive: (e) => e.isActive("codeBlock") },
 ];
 
 const HEADING_LEVELS = [

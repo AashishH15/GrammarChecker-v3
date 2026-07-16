@@ -10,6 +10,8 @@ import TextAlign from "@tiptap/extension-text-align";
 import Link from "@tiptap/extension-link";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { createLowlight, common } from "lowlight";
 import { ProofreadShortcut } from "./proofreadShortcut.js";
 import { detectTone } from "./toneScore.js";
 import Toolbar from "./Toolbar.jsx";
@@ -112,9 +114,14 @@ export default function App() {
   activeToolRef.current = activeTool;
   userDictionaryRef.current = userDictionary;
 
+  const lowlight = createLowlight(common);
+
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      // StarterKit bundles the base `codeBlock` node; disable it so the
+      // Lowlight-powered one below can own the `codeBlock` schema type
+      // without a node-type collision.
+      StarterKit.configure({ codeBlock: false }),
       Underline,
       Strike,
       Highlight.configure({ multicolor: false }),
@@ -130,6 +137,7 @@ export default function App() {
       }),
       TaskList,
       TaskItem.configure({ nested: true }),
+      CodeBlockLowlight.configure({ lowlight }),
       GrammarHighlight,
       ProofreadShortcut.configure({
         onProofread: () => proofreadRef.current(),
