@@ -8,6 +8,8 @@ import Superscript from "@tiptap/extension-superscript";
 import Subscript from "@tiptap/extension-subscript";
 import TextAlign from "@tiptap/extension-text-align";
 import Link from "@tiptap/extension-link";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
 import { ProofreadShortcut } from "./proofreadShortcut.js";
 import { detectTone } from "./toneScore.js";
 import Toolbar from "./Toolbar.jsx";
@@ -126,6 +128,8 @@ export default function App() {
           rel: "noopener noreferrer nofollow",
         },
       }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
       GrammarHighlight,
       ProofreadShortcut.configure({
         onProofread: () => proofreadRef.current(),

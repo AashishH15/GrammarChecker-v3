@@ -10,6 +10,7 @@ import {
   TextSubscript,
   ListBullets,
   ListNumbers,
+  ListChecks,
   TextH,
   TextHOne,
   TextHTwo,
@@ -38,8 +39,6 @@ const buttons = [
   { icon: Highlighter, label: "Highlight", action: (e) => e.chain().focus().toggleHighlight().run(), isActive: (e) => e.isActive("highlight") },
   { icon: TextSuperscript, label: "Superscript", action: (e) => e.chain().focus().toggleSuperscript().run(), isActive: (e) => e.isActive("superscript") },
   { icon: TextSubscript, label: "Subscript", action: (e) => e.chain().focus().toggleSubscript().run(), isActive: (e) => e.isActive("subscript") },
-  { icon: ListBullets, label: "Bullet list", action: (e) => e.chain().focus().toggleBulletList().run(), isActive: (e) => e.isActive("bulletList") },
-  { icon: ListNumbers, label: "Numbered list", action: (e) => e.chain().focus().toggleOrderedList().run(), isActive: (e) => e.isActive("orderedList") },
   { icon: Quotes, label: "Blockquote", action: (e) => e.chain().focus().toggleBlockquote().run(), isActive: (e) => e.isActive("blockquote") },
 ];
 
@@ -251,6 +250,99 @@ function AlignMenu({ editor }) {
   );
 }
 
+const LIST_OPTIONS = [
+  { value: "bulletList", icon: ListBullets, label: "Bullet list", action: (e) => e.chain().focus().toggleBulletList().run() },
+  { value: "orderedList", icon: ListNumbers, label: "Numbered list", action: (e) => e.chain().focus().toggleOrderedList().run() },
+  { value: "taskList", icon: ListChecks, label: "Task list", action: (e) => e.chain().focus().toggleTaskList().run() },
+];
+
+function ListMenu({ editor }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const activeList = useEditorState({
+    editor,
+    selector: ({ editor: e }) => {
+      for (const { value } of LIST_OPTIONS) {
+        if (e.isActive(value)) {
+          return value;
+        }
+      }
+      return null;
+    },
+  });
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const handleClick = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  function selectList(option) {
+    option.action(editor);
+    setOpen(false);
+  }
+
+  const activeItem = LIST_OPTIONS.find((o) => o.value === activeList);
+  const ActiveIcon = activeItem ? activeItem.icon : ListBullets;
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        title="Lists"
+        aria-label="Lists"
+        aria-pressed={open}
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className={
+          "group flex h-8 items-center gap-0.5 rounded border px-2 text-ink " +
+          (open
+            ? "border-ink bg-ink text-white"
+            : "border-transparent hover:bg-hairline/60")
+        }
+      >
+        <ActiveIcon size={16} weight="bold" className="transition-transform duration-200 group-hover:scale-110" />
+        <CaretDown
+          size={11}
+          weight="bold"
+          className={"transition-transform duration-200 " + (open ? "rotate-180" : "")}
+        />
+      </button>
+
+      {open && (
+        <ul className="lex-pop absolute left-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-lg border border-hairline bg-white py-1">
+          {LIST_OPTIONS.map(({ value, icon: Icon, label }) => (
+            <li key={value}>
+              <button
+                type="button"
+                onClick={() => selectList(LIST_OPTIONS.find((o) => o.value === value))}
+                aria-pressed={activeList === value}
+                className={
+                  "flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors " +
+                  (activeList === value
+                    ? "bg-pale-blue text-pale-blue-text"
+                    : "text-ink hover:bg-pale-blue hover:text-pale-blue-text")
+                }
+              >
+                <Icon size={16} weight="bold" />
+                <span>{label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function LinkButton({ editor, onRequestLink }) {
   const active = useEditorState({
     editor,
@@ -319,6 +411,7 @@ export default function FormatToolbar({ editor, onRequestLink }) {
 
       <HeadingMenu editor={editor} />
       <AlignMenu editor={editor} />
+      <ListMenu editor={editor} />
       <LinkButton editor={editor} onRequestLink={onRequestLink} />
     </div>
   );

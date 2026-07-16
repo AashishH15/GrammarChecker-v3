@@ -81,6 +81,66 @@
     margin: 0.4em 0;
   }
 
+  .ProseMirror ul[data-type="taskList"] {
+    list-style: none;
+    padding-left: 0.25rem;
+    margin: 0.4em 0;
+  }
+
+  .ProseMirror ul[data-type="taskList"] li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin: 0.25em 0;
+  }
+
+  .ProseMirror ul[data-type="taskList"] li > label {
+    flex: 0 0 auto;
+    margin-top: 0.35em;
+    user-select: none;
+  }
+
+  .ProseMirror ul[data-type="taskList"] li > div {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    border: 1px solid #eaeaea;
+    border-radius: 4px;
+    background: #f7f6f3;
+    cursor: pointer;
+    position: relative;
+    transition: background 150ms ease, border-color 150ms ease;
+  }
+
+  .ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked {
+    background: #e1f3fe;
+    border-color: #1f6c9f;
+  }
+
+  .ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 0.3rem;
+    top: 0.12rem;
+    width: 0.22rem;
+    height: 0.45rem;
+    border: solid #1f6c9f;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+    color: #787774;
+    text-decoration: line-through;
+  }
+
   .ProseMirror li {
     margin: 0.2em 0;
   }
