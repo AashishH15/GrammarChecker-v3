@@ -11,6 +11,7 @@ import Link from "@tiptap/extension-link";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import Image from "@tiptap/extension-image";
 import { createLowlight, common } from "lowlight";
 import { ProofreadShortcut } from "./proofreadShortcut.js";
 import { detectTone } from "./toneScore.js";
@@ -138,6 +139,18 @@ export default function App() {
       TaskList,
       TaskItem.configure({ nested: true }),
       CodeBlockLowlight.configure({ lowlight }),
+      // Image node: block-level. base64 is allowed so images pasted from the
+      // local clipboard
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+        HTMLAttributes: {
+          rel: "noopener noreferrer nofollow",
+          referrerpolicy: "no-referrer",
+          loading: "lazy",
+          decoding: "async",
+        },
+      }),
       GrammarHighlight,
       ProofreadShortcut.configure({
         onProofread: () => proofreadRef.current(),
@@ -146,6 +159,68 @@ export default function App() {
     editorProps: {
       attributes: {
         spellcheck: "false",
+      },
+      // Accept images dropped/pasted from the local clipboard.
+      handlePaste: (view, event) => {
+        const clipboard = event.clipboardData;
+        const text = clipboard?.getData("text/plain")?.trim() || "";
+        const hasFiles = (clipboard?.files?.length || 0) > 0;
+        const hasHtml = (clipboard?.getData("text/html") || "").length > 0;
+        if (
+          !hasFiles &&
+          !hasHtml &&
+          text &&
+          /^(https?:\/\/|data:image\/)/i.test(text) &&
+          /\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?|#|$)/i.test(text)
+        ) {
+          event.preventDefault();
+          const { schema } = view.state;
+          const node = schema.nodes.image.create({ src: text });
+          view.dispatch(view.state.tr.insert(view.state.selection.from, node));
+          return true;
+        }
+        const files = Array.from(clipboard?.files || []);
+        const images = files.filter((file) => file.type.startsWith("image/"));
+        if (images.length === 0) {
+          return false;
+        }
+        event.preventDefault();
+        const { schema } = view.state;
+        images.forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const src = reader.result;
+            const node = schema.nodes.image.create({ src });
+            const insertAt = view.state.selection.from;
+            view.dispatch(view.state.tr.insert(insertAt, node));
+          };
+          reader.readAsDataURL(file);
+        });
+        return true;
+      },
+      handleDrop: (view, event) => {
+        const files = Array.from(event.dataTransfer?.files || []);
+        const images = files.filter((file) => file.type.startsWith("image/"));
+        if (images.length === 0) {
+          return false;
+        }
+        event.preventDefault();
+        const { schema } = view.state;
+        const coords = view.posAtCoords({
+          left: event.clientX,
+          top: event.clientY,
+        });
+        const dropPos = coords ? coords.pos : view.state.selection.from;
+        images.forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const src = reader.result;
+            const node = schema.nodes.image.create({ src });
+            view.dispatch(view.state.tr.insert(dropPos, node));
+          };
+          reader.readAsDataURL(file);
+        });
+        return true;
       },
     },
     content: loadContent(),

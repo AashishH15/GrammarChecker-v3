@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, forwardRef } from "react";
 import { useEditorState } from "@tiptap/react";
 import {
   TextB,
@@ -25,6 +25,7 @@ import {
   TextAlignJustify,
   Quotes,
   Code,
+  Image as ImageIcon,
   ArrowCounterClockwise,
   ArrowClockwise,
   Link as LinkIcon,
@@ -345,6 +346,137 @@ function ListMenu({ editor }) {
   );
 }
 
+function ImageButton({ editor }) {
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState(null);
+  const containerRef = useRef(null);
+
+  const active = useEditorState({
+    editor,
+    selector: ({ editor: e }) => e.isActive("image"),
+  });
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const handleClick = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  function toggle() {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const { from } = editor.state.selection;
+    const coords = editor.view.coordsAtPos(from);
+    setRect({ top: coords.bottom, left: coords.left });
+    setOpen(true);
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        title="Insert image"
+        aria-label="Insert image"
+        aria-pressed={active || open}
+        aria-expanded={open}
+        onClick={toggle}
+        className={
+          "group flex h-8 w-8 items-center justify-center rounded border text-ink transition-colors " +
+          (active || open
+            ? "border-ink bg-ink text-white"
+            : "border-transparent hover:bg-hairline/60")
+        }
+      >
+        <ImageIcon size={16} weight="bold" className="transition-transform duration-200 group-hover:scale-125" />
+      </button>
+      {open && rect && (
+        <ImagePopover
+          rect={rect}
+          onInsert={(url) => {
+            editor.chain().focus().setImage({ src: url }).run();
+            setOpen(false);
+          }}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+const ImagePopover = forwardRef(function ImagePopover(
+  { rect, onInsert, onClose },
+  ref,
+) {
+  const [value, setValue] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, []);
+
+  const style = {
+    position: "fixed",
+    top: rect.bottom + 6,
+    left: rect.left,
+    zIndex: 50,
+  };
+
+  return (
+    <div
+      ref={ref}
+      style={style}
+      className="lex-pop flex w-72 items-center gap-2 rounded-lg border border-hairline bg-white p-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+    >
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            const url = value.trim();
+            if (url) {
+              onInsert(url);
+            }
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            onClose();
+          }
+        }}
+        placeholder="https://example.com/photo.png"
+        className="min-w-0 flex-1 rounded border border-hairline bg-canvas px-2 py-1.5 font-sans text-xs text-ink outline-none focus:border-muted"
+      />
+      <button
+        type="button"
+        title="Insert image"
+        aria-label="Insert image"
+        onClick={() => {
+          const url = value.trim();
+          if (url) {
+            onInsert(url);
+          }
+        }}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
+      >
+        <ImageIcon size={16} weight="bold" />
+      </button>
+    </div>
+  );
+});
+
 function LinkButton({ editor, onRequestLink }) {
   const active = useEditorState({
     editor,
@@ -414,6 +546,7 @@ export default function FormatToolbar({ editor, onRequestLink }) {
       <HeadingMenu editor={editor} />
       <AlignMenu editor={editor} />
       <ListMenu editor={editor} />
+      <ImageButton editor={editor} />
       <LinkButton editor={editor} onRequestLink={onRequestLink} />
     </div>
   );
