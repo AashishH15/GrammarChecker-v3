@@ -26,7 +26,7 @@ import Toolbar from "./Toolbar.jsx";
 import Editor from "./Editor.jsx";
 import ReviewPanel from "./ReviewPanel.jsx";
 import GrammarTooltip from "./GrammarTooltip.jsx";
-import Settings from "./Settings.jsx";
+import Settings, { SETTINGS_DEFAULTS } from "./Settings.jsx";
 import DictionaryPanel from "./DictionaryPanel.jsx";
 import { Gear, BookBookmark } from "@phosphor-icons/react";
 import { checkGrammar } from "./api.js";
@@ -78,12 +78,12 @@ function loadContent() {
 }
 
 function loadLanguage() {
-  return localStorage.getItem(languageKey) ?? "en-US";
+  return localStorage.getItem(languageKey) ?? SETTINGS_DEFAULTS.language;
 }
 
 function loadFontSize() {
   const saved = Number(localStorage.getItem(fontSizeKey));
-  return saved || 16;
+  return saved || SETTINGS_DEFAULTS.fontSize;
 }
 
 function loadFocusMode() {
@@ -91,7 +91,7 @@ function loadFocusMode() {
 }
 
 function loadLineSpacing() {
-  return Number(localStorage.getItem(lineSpacingKey)) || 1.6;
+  return Number(localStorage.getItem(lineSpacingKey)) || SETTINGS_DEFAULTS.lineSpacing;
 }
 
 function loadDictionary() {
@@ -552,6 +552,20 @@ export default function App() {
     localStorage.setItem(lineSpacingKey, String(next));
   }
 
+  // Reset every tweakable setting back to its smart default (C16.20). Clears
+  // the stored keys so a future load falls back to defaults too, and updates
+  // React state through the same setters used by the controls.
+  function handleResetDefaults() {
+    setLanguage(SETTINGS_DEFAULTS.language);
+    setFontSize(SETTINGS_DEFAULTS.fontSize);
+    setFocusMode(SETTINGS_DEFAULTS.focusMode);
+    setLineSpacing(SETTINGS_DEFAULTS.lineSpacing);
+    localStorage.removeItem(languageKey);
+    localStorage.removeItem(fontSizeKey);
+    localStorage.removeItem(focusModeKey);
+    localStorage.removeItem(lineSpacingKey);
+  }
+
   useEffect(() => {
     if (activeTool === "Proofread") {
       runGrammarCheck();
@@ -795,6 +809,7 @@ export default function App() {
         onLineSpacingChange={handleLineSpacingChange}
         focusMode={focusMode}
         onFocusModeChange={handleFocusModeChange}
+        onResetDefaults={handleResetDefaults}
         onClose={() => setSettingsOpen(false)}
       />
 

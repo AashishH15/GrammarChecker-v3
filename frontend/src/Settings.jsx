@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, CaretDown } from "@phosphor-icons/react";
+import { X, CaretDown, ArrowCounterClockwise } from "@phosphor-icons/react";
 import LanguageDropdown from "./LanguageDropdown.jsx";
 import Toggle from "./Toggle.jsx";
 
@@ -18,6 +18,15 @@ export const LINE_SPACINGS = [
   { value: 1.6, label: "Standard" },
   { value: 1.8, label: "Comfortable" },
 ];
+
+// Smart defaults for every user-tweakable setting. Centralized here so the
+// loaders in App.jsx and the "Reset to Default" action agree on one source.
+export const SETTINGS_DEFAULTS = {
+  language: "en-US",
+  fontSize: 16,
+  focusMode: false,
+  lineSpacing: 1.6,
+};
 
 const isMac =
   typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
@@ -55,6 +64,7 @@ export default function Settings({
   onLineSpacingChange,
   focusMode,
   onFocusModeChange,
+  onResetDefaults,
   onClose,
 }) {
   if (!open) {
@@ -62,7 +72,6 @@ export default function Settings({
   }
 
   const scrollRef = useRef(null);
-  const [overflowing, setOverflowing] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(() => {
     const saved = localStorage.getItem("lexicon:shortcutsOpen");
     return saved === null ? false : saved === "true";
@@ -76,16 +85,21 @@ export default function Settings({
     });
   }
 
+  // True when every tweakable setting already matches the smart defaults, so
+  // the Reset button can be disabled (nothing to reset).
+  const isDefault =
+    language === SETTINGS_DEFAULTS.language &&
+    fontSize === SETTINGS_DEFAULTS.fontSize &&
+    focusMode === SETTINGS_DEFAULTS.focusMode &&
+    lineSpacing === SETTINGS_DEFAULTS.lineSpacing;
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) {
       return;
     }
-    const check = () => setOverflowing(el.scrollHeight > el.clientHeight);
-    check();
-    const observer = new ResizeObserver(check);
-    observer.observe(el);
-    return () => observer.disconnect();
+    // Keep the scroll container scrolled to the top when the panel opens.
+    el.scrollTop = 0;
   }, []);
 
   return (
@@ -94,7 +108,7 @@ export default function Settings({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-hairline bg-white lex-card-enter"
+        className="flex h-[646px] max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-hairline bg-white lex-card-enter"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-hairline px-6 py-4">
@@ -113,10 +127,7 @@ export default function Settings({
 
         <div
           ref={scrollRef}
-          className={
-            "scrollbar-none flex-1 overflow-y-auto pl-6 pr-6 py-6 " +
-            (overflowing ? "lex-fade-scroll" : "")
-          }
+          className="lex-scroll min-h-0 flex-1 overflow-y-auto pl-6 pr-6 py-6"
         >
           <div>
             <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
@@ -262,6 +273,21 @@ export default function Settings({
                 ))}
               </div>
             </div>
+          </div>
+
+          <div className="mt-8 border-t border-hairline pt-5">
+            <button
+              type="button"
+              onClick={onResetDefaults}
+              disabled={isDefault}
+              className="flex w-full items-center justify-center gap-2 rounded border border-hairline bg-canvas py-2.5 font-sans text-sm font-medium text-ink transition-colors hover:border-muted disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hairline"
+            >
+              <ArrowCounterClockwise size={16} weight="bold" />
+              Reset to Default
+            </button>
+            <p className="mt-2 text-center font-sans text-[11px] text-muted">
+              Restores language, font size, focus mode, and line spacing.
+            </p>
           </div>
         </div>
       </div>
