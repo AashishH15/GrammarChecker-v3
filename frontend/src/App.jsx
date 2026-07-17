@@ -15,6 +15,7 @@ import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import Typography from "@tiptap/extension-typography";
 import DragHandle from "@tiptap/extension-drag-handle";
+import SlashCommand from "./slashCommand.js";
 import { createLowlight, common } from "lowlight";
 import { ProofreadShortcut } from "./proofreadShortcut.js";
 import { detectTone } from "./toneScore.js";
@@ -169,6 +170,10 @@ export default function App() {
         },
       }),
       GrammarHighlight,
+      // Slash command menu: typing "/" opens a filterable command list with
+      // full keyboard navigation (arrows + Enter). Active formats are flagged
+      // so re-selecting toggles them off.
+      SlashCommand,
       // Clean empty-draft hint. Only shows when the document has no content,
       // so it stays out of the way once the user starts writing.
       Placeholder.configure({

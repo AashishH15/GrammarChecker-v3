@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { EditorContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import { getMarkRange } from "@tiptap/core";
 import {
   Info,
@@ -8,8 +9,70 @@ import {
   ArrowSquareOut,
   Pen,
   LinkBreak,
+  TextB,
+  TextItalic,
+  TextUnderline,
+  TextStrikethrough,
+  Highlighter,
+  TextSuperscript,
+  TextSubscript,
+  Code,
+  Quotes,
 } from "@phosphor-icons/react";
 import FormatToolbar from "./FormatToolbar.jsx";
+
+// Quick-format actions shown in the selection bubble menu. Each mirrors the
+// toggle commands so a second click removes the format from the selection.
+const BUBBLE_ACTIONS = [
+  { id: "bold", label: "Bold", icon: TextB, isActive: (e) => e.isActive("bold"), run: (e) => e.chain().focus().toggleBold().run() },
+  { id: "italic", label: "Italic", icon: TextItalic, isActive: (e) => e.isActive("italic"), run: (e) => e.chain().focus().toggleItalic().run() },
+  { id: "underline", label: "Underline", icon: TextUnderline, isActive: (e) => e.isActive("underline"), run: (e) => e.chain().focus().toggleUnderline().run() },
+  { id: "strike", label: "Strikethrough", icon: TextStrikethrough, isActive: (e) => e.isActive("strike"), run: (e) => e.chain().focus().toggleStrike().run() },
+  { id: "highlight", label: "Highlight", icon: Highlighter, isActive: (e) => e.isActive("highlight"), run: (e) => e.chain().focus().toggleHighlight().run() },
+  { id: "superscript", label: "Superscript", icon: TextSuperscript, isActive: (e) => e.isActive("superscript"), run: (e) => e.chain().focus().toggleSuperscript().run() },
+  { id: "subscript", label: "Subscript", icon: TextSubscript, isActive: (e) => e.isActive("subscript"), run: (e) => e.chain().focus().toggleSubscript().run() },
+  { id: "code", label: "Inline code", icon: Code, isActive: (e) => e.isActive("code"), run: (e) => e.chain().focus().toggleCode().run() },
+  { id: "blockquote", label: "Blockquote", icon: Quotes, isActive: (e) => e.isActive("blockquote"), run: (e) => e.chain().focus().toggleBlockquote().run() },
+];
+
+function SelectionBubbleMenu({ editor }) {
+  if (!editor) {
+    return null;
+  }
+  return (
+    <BubbleMenu
+      editor={editor}
+      options={{ placement: "top", offset: { mainAxis: 8 } }}
+      shouldShow={({ editor: e, from, to }) =>
+        from !== to && !e.isActive("codeBlock") && e.isEditable
+      }
+    >
+      <div className="lex-pop flex items-center gap-0.5 rounded-lg border border-hairline bg-white p-1 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+        {BUBBLE_ACTIONS.map(({ id, label, icon: Icon, isActive, run }) => {
+          const active = isActive(editor);
+          return (
+            <button
+              key={id}
+              type="button"
+              title={label}
+              aria-label={label}
+              aria-pressed={active}
+              onClick={() => run(editor)}
+              className={
+                "group flex h-8 w-8 items-center justify-center rounded border text-ink transition-colors " +
+                (active
+                  ? "border-ink bg-ink text-white"
+                  : "border-transparent hover:bg-hairline/60")
+              }
+            >
+              <Icon size={16} weight="bold" className="transition-transform duration-200 group-hover:scale-125" />
+            </button>
+          );
+        })}
+      </div>
+    </BubbleMenu>
+  );
+}
 
 export default function Editor({
   editor,
@@ -358,6 +421,8 @@ export default function Editor({
       )}
 
       <FormatToolbar editor={editor} onRequestLink={requestLink} />
+
+      <SelectionBubbleMenu editor={editor} />
 
       <div className="lex-scroll flex-1 overflow-auto rounded border border-hairline bg-white">
         <EditorContent
