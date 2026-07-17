@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, forwardRef } from "react";
 import { EditorContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { getMarkRange } from "@tiptap/core";
+import katex from "katex";
 import {
   Info,
   CaretUp,
@@ -18,6 +19,7 @@ import {
   TextSubscript,
   Code,
   Quotes,
+  Trash,
 } from "@phosphor-icons/react";
 import FormatToolbar from "./FormatToolbar.jsx";
 
@@ -213,6 +215,173 @@ export default function Editor({
       .run();
     setLinkPopover(null);
   }
+
+  // Math editor popover
+  const [mathEdit, setMathEdit] = useState(null);
+  const mathPopoverRef = useRef(null);
+
+  // Ghost example shown as gray placeholder text in the empty input
+  const MATH_GHOST = {
+    inline: "\\int_0^\\infty e^{-x^2} dx",
+    block: "\\sum_{i=1}^{n} x_i",
+  };
+
+  // LaTeX used for the pending placeholder node.
+  const PENDING_LATEX = " ";
+
+  function openMathEditor({ kind, pos, latex, isNew = false }) {
+    if (!editor) {
+      return;
+    }
+    const coords = editor.view.coordsAtPos(pos);
+    setMathEdit({
+      kind,
+      pos,
+      latex: latex ?? "",
+      isNew,
+      rect: { top: coords.top, left: coords.left, bottom: coords.bottom },
+    });
+  }
+
+  function requestMath(editorInstance, kind) {
+    if (!editorInstance) {
+      return;
+    }
+    const pos = editorInstance.state.selection.$from.pos;
+    if (kind === "block") {
+      editorInstance.chain().focus().insertBlockMath({ latex: PENDING_LATEX, pos }).run();
+    } else {
+      editorInstance.chain().focus().insertInlineMath({ latex: PENDING_LATEX, pos }).run();
+    }
+    openMathEditor({ kind, pos, latex: "", isNew: true });
+  }
+
+  function applyMath(latex) {
+    if (!mathEdit) {
+      return;
+    }
+    const trimmed = latex.trim();
+    const { kind, pos, isNew } = mathEdit;
+    const type = kind === "block" ? "blockMath" : "inlineMath";
+    if (!trimmed) {
+      // No formula: remove the pending placeholder (new) or the existing node.
+      const target = resolveMathPos(pos, type);
+      if (kind === "block") {
+        editor.chain().focus().deleteBlockMath({ pos: target }).run();
+      } else {
+        editor.chain().focus().deleteInlineMath({ pos: target }).run();
+      }
+      setMathEdit(null);
+      return;
+    }
+    if (isNew) {
+      // Replace the pending placeholder with the typed formula: delete the
+      // placeholder at its position, then insert the new node there.
+      const target = resolveMathPos(pos, type);
+      if (kind === "block") {
+        editor.chain().focus().deleteBlockMath({ pos: target }).run();
+        editor.chain().focus().insertBlockMath({ latex: trimmed, pos: target }).run();
+      } else {
+        editor.chain().focus().deleteInlineMath({ pos: target }).run();
+        editor.chain().focus().insertInlineMath({ latex: trimmed, pos: target }).run();
+      }
+    } else {
+      // Update the existing node in place.
+      const target = resolveMathPos(pos, type);
+      if (kind === "block") {
+        editor.chain().focus().updateBlockMath({ latex: trimmed, pos: target }).run();
+      } else {
+        editor.chain().focus().updateInlineMath({ latex: trimmed, pos: target }).run();
+      }
+    }
+    setMathEdit(null);
+  }
+
+  // Dismiss the popover. For a brand-new (pending) equation with nothing
+  // committed yet, also remove the placeholder box.
+  function closeMathEditor() {
+    if (mathEdit && mathEdit.isNew) {
+      const { kind, pos } = mathEdit;
+      const type = kind === "block" ? "blockMath" : "inlineMath";
+      const target = resolveMathPos(pos, type);
+      if (kind === "block") {
+        editor.chain().focus().deleteBlockMath({ pos: target }).run();
+      } else {
+        editor.chain().focus().deleteInlineMath({ pos: target }).run();
+      }
+    }
+    setMathEdit(null);
+  }
+
+  // Delete the equation outright (trash button). Works for both a brand-new
+  // pending box and an existing node.
+  function deleteMath() {
+    if (!mathEdit) {
+      return;
+    }
+    const { kind, pos } = mathEdit;
+    const type = kind === "block" ? "blockMath" : "inlineMath";
+    const target = resolveMathPos(pos, type);
+    if (kind === "block") {
+      editor.chain().focus().deleteBlockMath({ pos: target }).run();
+    } else {
+      editor.chain().focus().deleteInlineMath({ pos: target }).run();
+    }
+    setMathEdit(null);
+  }
+
+  function resolveMathPos(pos, type) {
+    const doc = editor.state.doc;
+    const exact = doc.nodeAt(pos);
+    if (exact && exact.type.name === type) {
+      return pos;
+    }
+    for (const delta of [-1, 1, -2, 2]) {
+      const p = pos + delta;
+      if (p < 0 || p > doc.content.size) {
+        continue;
+      }
+      const node = doc.nodeAt(p);
+      if (node && node.type.name === type) {
+        return p;
+      }
+    }
+    return pos;
+  }
+
+  // Listen for edit requests coming from math node clicks (dispatched in
+  // App.jsx) and from slash commands (dispatched in slashCommand.js).
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+    const handler = (event) => {
+      const { kind, pos, latex } = event.detail || {};
+      if (kind !== "inline" && kind !== "block") {
+        return;
+      }
+      openMathEditor({ kind, pos, latex, isNew: false });
+    };
+    window.addEventListener("lex:edit-math", handler);
+    return () => window.removeEventListener("lex:edit-math", handler);
+  }, [editor]);
+
+  // Click-away close for the math popover (removes a pending box if any).
+  useEffect(() => {
+    if (!mathEdit) {
+      return;
+    }
+    const handleAway = (event) => {
+      if (
+        mathPopoverRef.current &&
+        !mathPopoverRef.current.contains(event.target)
+      ) {
+        closeMathEditor();
+      }
+    };
+    document.addEventListener("mousedown", handleAway);
+    return () => document.removeEventListener("mousedown", handleAway);
+  }, [mathEdit]);
 
   return (
     <div className="flex flex-col h-full">
@@ -420,7 +589,7 @@ export default function Editor({
         </div>
       )}
 
-      <FormatToolbar editor={editor} onRequestLink={requestLink} />
+      <FormatToolbar editor={editor} onRequestLink={requestLink} onRequestMath={requestMath} />
 
       <SelectionBubbleMenu editor={editor} />
 
@@ -445,6 +614,16 @@ export default function Editor({
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
           onClose={() => setLinkPopover(null)}
+        />
+      )}
+
+      {mathEdit && (
+        <MathPopover
+          ref={mathPopoverRef}
+          data={mathEdit}
+          onApply={applyMath}
+          onClose={closeMathEditor}
+          onDelete={deleteMath}
         />
       )}
     </div>
@@ -526,6 +705,118 @@ const LinkPopover = forwardRef(function LinkPopover(
       >
         <LinkBreak size={16} weight="bold" />
       </button>
+    </div>
+  );
+});
+
+// Live LaTeX editor for inline/block math
+const MathPopover = forwardRef(function MathPopover({ data, onApply, onClose, onDelete }, ref) {
+  const [value, setValue] = useState(data.latex || "");
+  const inputRef = useRef(null);
+  const previewRef = useRef(null);
+
+  useEffect(() => {
+    let raf2;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const el = inputRef.current;
+        if (el) {
+          if (document.activeElement && document.activeElement !== el) {
+            document.activeElement.blur();
+          }
+          el.focus();
+          el.select();
+        }
+      });
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!previewRef.current) {
+      return;
+    }
+    const latex = value.trim();
+    if (!latex) {
+      previewRef.current.innerHTML = "";
+      return;
+    }
+    try {
+      katex.render(latex, previewRef.current, {
+        throwOnError: false,
+        errorColor: "#9f2f2d",
+        displayMode: data.kind === "block",
+      });
+    } catch {
+      previewRef.current.textContent = latex;
+    }
+  }, [value, data.kind]);
+
+  const style = {
+    position: "fixed",
+    top: data.rect.bottom + 6,
+    left: data.rect.left,
+    zIndex: 50,
+  };
+
+  return (
+    <div
+      ref={ref}
+      style={style}
+      className="lex-pop w-80 rounded-lg border border-hairline bg-white p-2 shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+    >
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            onApply(value);
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            onClose();
+          }
+        }}
+        placeholder={data.kind === "block" ? "\\sum_{i=1}^{n} x_i" : "\\int_0^\\infty e^{-x^2} dx"}
+        className="mb-2 w-full rounded border border-hairline bg-canvas px-2 py-1.5 font-mono text-xs text-ink outline-none focus:border-muted"
+      />
+      <div className="min-h-8 overflow-x-auto rounded border border-hairline bg-canvas px-3 py-2">
+        <div ref={previewRef} className="flex justify-center text-ink" />
+      </div>
+      <div className="mt-2 flex items-center justify-end gap-1">
+        <button
+          type="button"
+          title="Cancel"
+          aria-label="Cancel"
+          onClick={onClose}
+          className="flex h-8 items-center rounded px-3 font-sans text-xs text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          title="Delete equation"
+          aria-label="Delete equation"
+          onClick={onDelete}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted transition-colors hover:bg-pale-red hover:text-pale-red-text"
+        >
+          <Trash size={16} weight="bold" />
+        </button>
+        <button
+          type="button"
+          title="Save equation"
+          aria-label="Save equation"
+          onClick={() => onApply(value)}
+          className="flex h-8 items-center rounded bg-ink px-3 font-sans text-xs font-medium text-white transition-colors hover:opacity-90"
+        >
+          Save
+        </button>
+      </div>
     </div>
   );
 });

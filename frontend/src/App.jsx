@@ -15,6 +15,8 @@ import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import Typography from "@tiptap/extension-typography";
 import DragHandle from "@tiptap/extension-drag-handle";
+import { Mathematics } from "@tiptap/extension-mathematics";
+import "katex/dist/katex.min.css";
 import SlashCommand from "./slashCommand.js";
 import { createLowlight, common } from "lowlight";
 import { ProofreadShortcut } from "./proofreadShortcut.js";
@@ -104,6 +106,15 @@ function selectionText(editor) {
   return editor.state.doc.textBetween(from, to, " ");
 }
 
+// Click handler for inline/block math nodes: open the inline math editor
+function requestMathEdit(kind, node, pos) {
+  window.dispatchEvent(
+    new CustomEvent("lex:edit-math", {
+      detail: { kind, pos, latex: node.attrs.latex ?? "" },
+    }),
+  );
+}
+
 export default function App() {
   const [selectedText, setSelectedText] = useState("");
   const [activeTool, setActiveTool] = useState("");
@@ -157,8 +168,17 @@ export default function App() {
       TaskList,
       TaskItem.configure({ nested: true }),
       CodeBlockLowlight.configure({ lowlight }),
-      // Image node: block-level. base64 is allowed so images pasted from the
-      // local clipboard
+      // Mathematics: inline ($...$) and block ($$$...$$$) LaTeX rendered via
+      // KaTeX. Errors render inline (throwOnError:false) instead of crashing.
+      Mathematics.configure({
+        katexOptions: { throwOnError: false, errorColor: "#9f2f2d" },
+        inlineOptions: {
+          onClick: (node, pos) => requestMathEdit("inline", node, pos),
+        },
+        blockOptions: {
+          onClick: (node, pos) => requestMathEdit("block", node, pos),
+        },
+      }),
       Image.configure({
         inline: false,
         allowBase64: true,

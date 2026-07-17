@@ -29,6 +29,8 @@ import {
   ArrowCounterClockwise,
   ArrowClockwise,
   Link as LinkIcon,
+  MathOperations,
+  Function,
 } from "@phosphor-icons/react";
 
 const buttons = [
@@ -346,6 +348,91 @@ function ListMenu({ editor }) {
   );
 }
 
+const MATH_OPTIONS = [
+  { value: "inlineMath", icon: MathOperations, label: "Inline math", kind: "inline" },
+  { value: "blockMath", icon: Function, label: "Block math", kind: "block" },
+];
+
+function MathMenu({ editor, onRequestMath }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  const activeMath = useEditorState({
+    editor,
+    selector: ({ editor: e }) => {
+      if (e.isActive("inlineMath")) {
+        return "inlineMath";
+      }
+      if (e.isActive("blockMath")) {
+        return "blockMath";
+      }
+      return null;
+    },
+  });
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const handleClick = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  function selectMath(option) {
+    onRequestMath(editor, option.kind);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        title="Math"
+        aria-label="Math"
+        aria-pressed={open || activeMath}
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className={
+          "group flex h-8 w-8 items-center justify-center rounded border text-ink transition-colors " +
+          (open || activeMath
+            ? "border-ink bg-ink text-white"
+            : "border-transparent hover:bg-hairline/60")
+        }
+      >
+        <MathOperations size={16} weight="bold" className="transition-transform duration-200 group-hover:scale-125" />
+      </button>
+
+      {open && (
+        <ul className="lex-pop absolute left-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-lg border border-hairline bg-white py-1">
+          {MATH_OPTIONS.map(({ value, icon: Icon, label }) => (
+            <li key={value}>
+              <button
+                type="button"
+                onClick={() => selectMath(MATH_OPTIONS.find((o) => o.value === value))}
+                aria-pressed={activeMath === value}
+                className={
+                  "flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors " +
+                  (activeMath === value
+                    ? "bg-pale-blue text-pale-blue-text"
+                    : "text-ink hover:bg-pale-blue hover:text-pale-blue-text")
+                }
+              >
+                <Icon size={16} weight="bold" />
+                <span>{label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function ImageButton({ editor }) {
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState(null);
@@ -502,7 +589,7 @@ function LinkButton({ editor, onRequestLink }) {
   );
 }
 
-export default function FormatToolbar({ editor, onRequestLink }) {
+export default function FormatToolbar({ editor, onRequestLink, onRequestMath }) {
   const state = useEditorState({
     editor,
     selector: (snapshot) => {
@@ -546,6 +633,7 @@ export default function FormatToolbar({ editor, onRequestLink }) {
       <HeadingMenu editor={editor} />
       <AlignMenu editor={editor} />
       <ListMenu editor={editor} />
+      <MathMenu editor={editor} onRequestMath={onRequestMath} />
       <ImageButton editor={editor} />
       <LinkButton editor={editor} onRequestLink={onRequestLink} />
     </div>

@@ -27,6 +27,8 @@ import {
   Link as LinkIcon,
   Image as ImageIcon,
   Paragraph,
+  MathOperations,
+  Function,
 } from "@phosphor-icons/react";
 import CommandList from "./CommandList.jsx";
 
@@ -290,6 +292,41 @@ const COMMANDS = [
       }
     },
     unset: () => {},
+  },
+  {
+    id: "math",
+    label: "Inline math",
+    icon: MathOperations,
+    keywords: ["math", "latex", "equation", "formula", "inline"],
+    isActive: (e) => e.isActive("inlineMath"),
+    set: (e) => {
+      const pos = e.state.selection.$from.pos;
+      e.chain().focus().insertInlineMath({ latex: " ", pos }).run();
+      window.dispatchEvent(
+        new CustomEvent("lex:edit-math", {
+          detail: { kind: "inline", pos, latex: "", isNew: true },
+        }),
+      );
+    },
+    unset: (e) => e.chain().focus().deleteInlineMath().run(),
+  },
+  {
+    id: "mathblock",
+    label: "Block math",
+    icon: Function,
+    keywords: ["math", "latex", "equation", "formula", "block", "display"],
+    isActive: (e) => e.isActive("blockMath"),
+    // Drop an empty pending box, then open the editor with a blank input.
+    set: (e) => {
+      const pos = e.state.selection.$from.pos;
+      e.chain().focus().insertBlockMath({ latex: " ", pos }).run();
+      window.dispatchEvent(
+        new CustomEvent("lex:edit-math", {
+          detail: { kind: "block", pos, latex: "", isNew: true },
+        }),
+      );
+    },
+    unset: (e) => e.chain().focus().deleteBlockMath().run(),
   },
 ];
 

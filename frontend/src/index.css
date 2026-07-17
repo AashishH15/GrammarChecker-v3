@@ -283,6 +283,88 @@
     border-radius: 8px;
   }
 
+  /* Inline math node (Mathematics extension, KaTeX). A subtle chip that reads
+     as an atomic token rather than editable text. */
+  .ProseMirror .tiptap-mathematics-render[data-type="inline-math"] {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.3em;
+    margin: 0 0.05em;
+    background: #f7f6f3;
+    border: 1px solid #eaeaea;
+    border-radius: 4px;
+    cursor: pointer;
+    vertical-align: baseline;
+  }
+
+  .ProseMirror .tiptap-mathematics-render[data-type="inline-math"]:hover {
+    border-color: #1f6c9f;
+  }
+
+  /* Block math node: centered, card-like display block. */
+  .ProseMirror .tiptap-mathematics-render[data-type="block-math"] {
+    display: flex;
+    justify-content: center;
+    margin: 0.9em 0;
+    padding: 0.9rem 1rem;
+    background: #f7f6f3;
+    border: 1px solid #eaeaea;
+    border-radius: 8px;
+    overflow-x: auto;
+    cursor: pointer;
+  }
+
+  .ProseMirror .tiptap-mathematics-render[data-type="block-math"]:hover {
+    border-color: #1f6c9f;
+  }
+
+  .ProseMirror .tiptap-mathematics-render[data-type="block-math"] .katex-display {
+    margin: 0;
+  }
+
+  /* Pending placeholder box: an empty math node dropped when the editor opens
+     so the user sees "an equation will go here". It's intentionally blank (no
+     rendered LaTeX) — just a neutral hint until they type and save. */
+  .ProseMirror .tiptap-mathematics-render[data-latex=" "] {
+    border-style: dashed;
+    border-color: #d9d6d0;
+    color: #9b968c;
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  }
+
+  .ProseMirror .tiptap-mathematics-render[data-latex=" "] .katex,
+  .ProseMirror .tiptap-mathematics-render[data-latex=" "] .block-math-inner,
+  .ProseMirror .tiptap-mathematics-render[data-latex=" "] .katex-display {
+    display: none;
+  }
+
+  .ProseMirror .tiptap-mathematics-render[data-latex=" "][data-type="inline-math"]::after {
+    content: "Equation";
+    font-size: 0.8em;
+    letter-spacing: 0.02em;
+  }
+
+  .ProseMirror .tiptap-mathematics-render[data-latex=" "][data-type="block-math"] {
+    min-height: 2.5rem;
+    align-items: center;
+  }
+
+  .ProseMirror .tiptap-mathematics-render[data-latex=" "][data-type="block-math"]::after {
+    content: "Equation";
+    font-size: 0.85em;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* Invalid LaTeX: show the raw source in the error color instead of a
+     broken render. */
+  .ProseMirror .tiptap-mathematics-render.inline-math-error,
+  .ProseMirror .tiptap-mathematics-render.block-math-error {
+    color: #9f2f2d;
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.88em;
+  }
+
   /* Drag handle grip (DragHandle extension). */
   .lex-drag-handle {
     display: flex;
