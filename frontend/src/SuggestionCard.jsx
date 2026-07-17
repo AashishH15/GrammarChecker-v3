@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { BookBookmark } from "@phosphor-icons/react";
 
 const categoryStyles = {
@@ -9,6 +10,7 @@ const categoryStyles = {
 export default function SuggestionCard({
   match,
   index,
+  active,
   onApply,
   onDismiss,
   onAddToDictionary,
@@ -16,11 +18,34 @@ export default function SuggestionCard({
 }) {
   const replacement = match.replacements[0];
   const tag = categoryStyles[match.category] || categoryStyles.Grammar;
+  const cardRef = useRef(null);
+  useEffect(() => {
+    if (!active || !cardRef.current) {
+      return;
+    }
+    const el = cardRef.current;
+    const container = el.closest(".lex-scroll");
+    if (container) {
+      const delta = el.getBoundingClientRect().top - container.getBoundingClientRect().top;
+      container.scrollTo({
+        top: container.scrollTop + delta - 8,
+        behavior: "smooth",
+      });
+    } else {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [active]);
 
   return (
     <li
+      ref={cardRef}
       onClick={() => onLocate(match)}
-      className="cursor-pointer rounded-xl border border-hairline bg-white p-6 pb-4 transition-colors duration-200 hover:border-muted lex-card-enter"
+      className={
+        "cursor-pointer rounded-xl border bg-white p-6 pb-4 transition-colors duration-200 lex-card-enter " +
+        (active
+          ? "border-ink ring-1 ring-ink/10 bg-canvas"
+          : "border-hairline hover:border-muted")
+      }
       style={{ animationDelay: `${index * 80}ms` }}
     >
       <span

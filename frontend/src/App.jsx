@@ -375,9 +375,20 @@ export default function App() {
       const rect = target.getBoundingClientRect();
       setHoveredError({ id, rect });
     };
+    const handleClick = (event) => {
+      const target = event.target.closest(".lex-error");
+      if (!target) {
+        return;
+      }
+      const id = Number(target.getAttribute("data-error-id"));
+      activeErrorRef.current = id;
+      setActiveErrorId(id);
+    };
     dom.addEventListener("mouseover", handleOver);
+    dom.addEventListener("click", handleClick);
     return () => {
       dom.removeEventListener("mouseover", handleOver);
+      dom.removeEventListener("click", handleClick);
     };
   }, [editor]);
 
@@ -516,6 +527,8 @@ export default function App() {
     if (!editor) {
       return;
     }
+    setActiveErrorId(match.id);
+    activeErrorRef.current = match.id;
     focusError(editor, match.id);
   }
 
@@ -744,6 +757,7 @@ export default function App() {
             activeTool={activeTool}
             grammarMatches={grammarMatches}
             checking={checking}
+            activeErrorId={activeErrorId}
             onApply={handleApplySuggestion}
             onDismiss={handleDismiss}
             onAddToDictionary={handleAddToDictionary}

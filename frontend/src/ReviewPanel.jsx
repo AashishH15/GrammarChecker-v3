@@ -6,6 +6,7 @@ export default function ReviewPanel({
   activeTool,
   grammarMatches,
   checking,
+  activeErrorId,
   onApply,
   onDismiss,
   onAddToDictionary,
@@ -58,6 +59,7 @@ export default function ReviewPanel({
                 key={match.id}
                 match={match}
                 index={i}
+                active={activeErrorId === match.id}
                 onApply={onApply}
                 onDismiss={onDismiss}
                 onAddToDictionary={onAddToDictionary}
