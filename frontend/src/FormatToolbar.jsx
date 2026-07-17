@@ -11,7 +11,6 @@ import {
   ListBullets,
   ListNumbers,
   ListChecks,
-  TextH,
   TextHOne,
   TextHTwo,
   TextHThree,
@@ -32,6 +31,7 @@ import {
   MathOperations,
   Function,
   Table as TableIcon,
+  Paragraph,
   Plus,
   Trash,
   Rows,
@@ -106,6 +106,12 @@ function HeadingMenu({ editor }) {
   }
 
   const isActive = activeLevel > 0;
+  // Show the active heading level's icon (H1-H6) when a heading is active,
+  // and the Paragraph glyph when in paragraph mode, so the button stays in
+  // sync with the /paragraph slash command and the alignment/list buttons.
+  const ActiveIcon = isActive
+    ? HEADING_LEVELS.find((l) => l.level === activeLevel).icon
+    : Paragraph;
 
   return (
     <div ref={containerRef} className="relative">
@@ -123,7 +129,7 @@ function HeadingMenu({ editor }) {
             : "border-transparent hover:bg-hairline/60")
         }
       >
-        <TextH size={16} weight="bold" className="transition-transform duration-200 group-hover:scale-110" />
+        <ActiveIcon size={16} weight="bold" className="transition-transform duration-200 group-hover:scale-110" />
         <CaretDown
           size={11}
           weight="bold"
@@ -166,7 +172,7 @@ function HeadingMenu({ editor }) {
                   : "text-ink hover:bg-pale-blue hover:text-pale-blue-text")
               }
             >
-              <TextH size={16} weight="bold" />
+              <Paragraph size={16} weight="bold" />
               <span>Paragraph</span>
             </button>
           </li>
