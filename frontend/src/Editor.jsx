@@ -15,8 +15,6 @@ import {
   TextUnderline,
   TextStrikethrough,
   Highlighter,
-  TextSuperscript,
-  TextSubscript,
   Code,
   Quotes,
   Trash,
@@ -31,10 +29,8 @@ const BUBBLE_ACTIONS = [
   { id: "underline", label: "Underline", icon: TextUnderline, isActive: (e) => e.isActive("underline"), run: (e) => e.chain().focus().toggleUnderline().run() },
   { id: "strike", label: "Strikethrough", icon: TextStrikethrough, isActive: (e) => e.isActive("strike"), run: (e) => e.chain().focus().toggleStrike().run() },
   { id: "highlight", label: "Highlight", icon: Highlighter, isActive: (e) => e.isActive("highlight"), run: (e) => e.chain().focus().toggleHighlight().run() },
-  { id: "superscript", label: "Superscript", icon: TextSuperscript, isActive: (e) => e.isActive("superscript"), run: (e) => e.chain().focus().toggleSuperscript().run() },
-  { id: "subscript", label: "Subscript", icon: TextSubscript, isActive: (e) => e.isActive("subscript"), run: (e) => e.chain().focus().toggleSubscript().run() },
-  { id: "code", label: "Inline code", icon: Code, isActive: (e) => e.isActive("code"), run: (e) => e.chain().focus().toggleCode().run() },
   { id: "blockquote", label: "Blockquote", icon: Quotes, isActive: (e) => e.isActive("blockquote"), run: (e) => e.chain().focus().toggleBlockquote().run() },
+  { id: "code", label: "Inline code", icon: Code, isActive: (e) => e.isActive("code"), run: (e) => e.chain().focus().toggleCode().run() },
 ];
 
 function SelectionBubbleMenu({ editor }) {

@@ -41,8 +41,6 @@ const buttons = [
   { icon: TextUnderline, label: "Underline", action: (e) => e.chain().focus().toggleUnderline().run(), isActive: (e) => e.isActive("underline") },
   { icon: TextStrikethrough, label: "Strikethrough", action: (e) => e.chain().focus().toggleStrike().run(), isActive: (e) => e.isActive("strike") },
   { icon: Highlighter, label: "Highlight", action: (e) => e.chain().focus().toggleHighlight().run(), isActive: (e) => e.isActive("highlight") },
-  { icon: TextSuperscript, label: "Superscript", action: (e) => e.chain().focus().toggleSuperscript().run(), isActive: (e) => e.isActive("superscript") },
-  { icon: TextSubscript, label: "Subscript", action: (e) => e.chain().focus().toggleSubscript().run(), isActive: (e) => e.isActive("subscript") },
   { icon: Quotes, label: "Blockquote", action: (e) => e.chain().focus().toggleBlockquote().run(), isActive: (e) => e.isActive("blockquote") },
   { icon: Code, label: "Code block", action: (e) => e.chain().focus().toggleCodeBlock().run(), isActive: (e) => e.isActive("codeBlock") },
 ];
@@ -351,6 +349,8 @@ function ListMenu({ editor }) {
 const MATH_OPTIONS = [
   { value: "inlineMath", icon: MathOperations, label: "Inline math", kind: "inline" },
   { value: "blockMath", icon: Function, label: "Block math", kind: "block" },
+  { value: "superscript", icon: TextSuperscript, label: "Superscript", action: (e) => e.chain().focus().toggleSuperscript().run(), isActive: (e) => e.isActive("superscript") },
+  { value: "subscript", icon: TextSubscript, label: "Subscript", action: (e) => e.chain().focus().toggleSubscript().run(), isActive: (e) => e.isActive("subscript") },
 ];
 
 function MathMenu({ editor, onRequestMath }) {
@@ -365,6 +365,12 @@ function MathMenu({ editor, onRequestMath }) {
       }
       if (e.isActive("blockMath")) {
         return "blockMath";
+      }
+      if (e.isActive("superscript")) {
+        return "superscript";
+      }
+      if (e.isActive("subscript")) {
+        return "subscript";
       }
       return null;
     },
@@ -384,7 +390,11 @@ function MathMenu({ editor, onRequestMath }) {
   }, [open]);
 
   function selectMath(option) {
-    onRequestMath(editor, option.kind);
+    if (option.action) {
+      option.action(editor);
+    } else {
+      onRequestMath(editor, option.kind);
+    }
     setOpen(false);
   }
 
