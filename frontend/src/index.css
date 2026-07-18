@@ -516,6 +516,8 @@
     }
   }
 
+  /* Side panels animate their width open/closed
+
   /* Tables (TipTap TableKit) */
   .ProseMirror .tableWrapper {
     overflow-x: auto;

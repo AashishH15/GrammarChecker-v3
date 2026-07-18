@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -28,7 +28,16 @@ import ReviewPanel from "./ReviewPanel.jsx";
 import GrammarTooltip from "./GrammarTooltip.jsx";
 import Settings, { SETTINGS_DEFAULTS } from "./Settings.jsx";
 import DictionaryPanel from "./DictionaryPanel.jsx";
-import { Gear, BookBookmark } from "@phosphor-icons/react";
+import {
+  Gear,
+  BookBookmark,
+  ArrowsOut,
+  ArrowsIn,
+  ArrowLineLeft,
+  ArrowLineRight,
+  ArrowSquareLeft,
+  ArrowSquareRight,
+} from "@phosphor-icons/react";
 import { checkGrammar } from "./api.js";
 import {
   GrammarHighlight,
@@ -71,6 +80,8 @@ const fontSizeKey = "lexicon:fontSize";
 const focusModeKey = "lexicon:focusMode";
 const lineSpacingKey = "lexicon:lineSpacing";
 const dictionaryKey = "lexicon:user_dictionary";
+const leftPanelKey = "lexicon:leftPanelOpen";
+const rightPanelKey = "lexicon:rightPanelOpen";
 
 function loadContent() {
   const saved = localStorage.getItem(storageKey);
@@ -92,6 +103,11 @@ function loadFocusMode() {
 
 function loadLineSpacing() {
   return Number(localStorage.getItem(lineSpacingKey)) || SETTINGS_DEFAULTS.lineSpacing;
+}
+
+function loadPanelOpen(key) {
+  // Default to open (key absent === true). Only an explicit "false" collapses.
+  return localStorage.getItem(key) !== "false";
 }
 
 function loadDictionary() {
@@ -135,6 +151,14 @@ export default function App() {
   const [editorFocused, setEditorFocused] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dictionaryOpen, setDictionaryOpen] = useState(false);
+  const [leftPanelOpen, setLeftPanelOpen] = useState(() =>
+    loadPanelOpen(leftPanelKey),
+  );
+  const [rightPanelOpen, setRightPanelOpen] = useState(() =>
+    loadPanelOpen(rightPanelKey),
+  );
+  const [leftPeek, setLeftPeek] = useState(false);
+  const [rightPeek, setRightPeek] = useState(false);
 
   const proofreadRef = useRef(() => {});
   const activeErrorRef = useRef(null);
@@ -585,6 +609,38 @@ export default function App() {
     localStorage.setItem(focusModeKey, String(next));
   }
 
+  function setLeftPanel(next) {
+    setLeftPanelOpen(next);
+    localStorage.setItem(leftPanelKey, String(next));
+  }
+
+  function setRightPanel(next) {
+    setRightPanelOpen(next);
+    localStorage.setItem(rightPanelKey, String(next));
+  }
+
+  function handleToggleLeftPanel() {
+    setLeftPanelOpen((open) => {
+      const next = !open;
+      localStorage.setItem(leftPanelKey, String(next));
+      return next;
+    });
+  }
+
+  function handleToggleRightPanel() {
+    setRightPanelOpen((open) => {
+      const next = !open;
+      localStorage.setItem(rightPanelKey, String(next));
+      return next;
+    });
+  }
+
+  function handleToggleFullscreen() {
+    const shouldCollapse = leftPanelOpen || rightPanelOpen;
+    setLeftPanel(!shouldCollapse);
+    setRightPanel(!shouldCollapse);
+  }
+
   function handleLineSpacingChange(next) {
     setLineSpacing(next);
     localStorage.setItem(lineSpacingKey, String(next));
@@ -732,6 +788,52 @@ export default function App() {
     "transition-opacity duration-700 ease-in-out " +
     (dimmed ? "opacity-[0.02] hover:opacity-100" : "opacity-100");
 
+  const leftVisible = leftPanelOpen || (focusMode && leftPeek);
+  const rightVisible = rightPanelOpen || (focusMode && rightPeek);
+
+  const leftPanelClass = leftVisible ? "ml-0" : "-ml-64";
+  const rightPanelClass = rightVisible ? "mr-0" : "-mr-80";
+  const leftPanelRef = useRef(null);
+  const rightPanelRef = useRef(null);
+  const leftAnimRef = useRef(null);
+  const rightAnimRef = useRef(null);
+  const playSlide = (animRef, el, marginProp, toTransform, toMargin) => {
+    const cs = getComputedStyle(el);
+    const fromTransform = cs.transform;
+    const fromMargin = cs[marginProp];
+    if (animRef.current) animRef.current.cancel();
+    const anim = el.animate(
+      [
+        { transform: fromTransform, [marginProp]: fromMargin },
+        { transform: toTransform, [marginProp]: toMargin },
+      ],
+      { duration: 300, easing: "ease-out", fill: "forwards" },
+    );
+    animRef.current = anim;
+  };
+  useLayoutEffect(() => {
+    const el = leftPanelRef.current;
+    if (!el) return;
+    playSlide(
+      leftAnimRef,
+      el,
+      "marginLeft",
+      leftVisible ? "translateX(0px)" : "translateX(-256px)",
+      leftVisible ? "0px" : "-256px",
+    );
+  }, [leftVisible]);
+  useLayoutEffect(() => {
+    const el = rightPanelRef.current;
+    if (!el) return;
+    playSlide(
+      rightAnimRef,
+      el,
+      "marginRight",
+      rightVisible ? "translateX(0px)" : "translateX(320px)",
+      rightVisible ? "0px" : "-320px",
+    );
+  }, [rightVisible]);
+
   return (
     <div className="flex flex-col h-screen bg-canvas text-ink">
       <header className="flex items-center justify-between px-6 h-14 border-b border-hairline">
@@ -741,48 +843,113 @@ export default function App() {
             System Toolset V3.0
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => setSettingsOpen(true)}
-          className="rounded px-2 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:text-ink"
-          aria-label="Open settings"
-        >
-          {language}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleToggleFullscreen}
+            className="rounded p-1.5 text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
+            aria-label={leftPanelOpen || rightPanelOpen ? "Fullscreen editor" : "Exit fullscreen"}
+            title={leftPanelOpen || rightPanelOpen ? "Fullscreen editor" : "Exit fullscreen"}
+          >
+            {leftPanelOpen || rightPanelOpen ? (
+              <ArrowsOut size={16} weight="bold" />
+            ) : (
+              <ArrowsIn size={16} weight="bold" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="rounded px-2 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:text-ink"
+            aria-label="Open settings"
+          >
+            {language}
+          </button>
+        </div>
       </header>
 
-      <main className="flex flex-1 min-h-0">
-        <aside className={"flex w-64 shrink-0 flex-col justify-between border-r border-hairline p-4 " + panelDim}>
-          <Toolbar editor={editor} activeTool={activeTool} onToolClick={handleToolClick} />
-          <div className="flex flex-col gap-1">
-            <button
-              type="button"
-              onClick={() => setDictionaryOpen(true)}
-              className="group flex items-center gap-2.5 rounded px-2 py-1.5 text-left text-sm text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
-              aria-label="Open your dictionary"
-            >
-              <BookBookmark
-                size={16}
-                weight="bold"
-                className="transition-transform duration-200 group-hover:scale-110"
-              />
-              <span>Your Dictionary</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              className="group flex items-center gap-2.5 rounded px-2 py-1.5 text-left text-sm text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
-              aria-label="Open settings"
-            >
-              <Gear
-                size={16}
-                weight="bold"
-                className="transition-transform duration-200 group-hover:rotate-45"
-              />
-              <span>Settings</span>
-            </button>
-          </div>
-        </aside>
+      <main className="relative flex flex-1 min-h-0">
+        <div
+          ref={leftPanelRef}
+          className={
+            "shrink-0 w-64 overflow-hidden border-r border-hairline " +
+            leftPanelClass +
+            (leftVisible ? " " + panelDim : "")
+          }
+          onMouseLeave={() => focusMode && setLeftPeek(false)}
+        >
+          <aside className="flex h-full w-64 flex-col">
+            <div className="flex items-center justify-between px-4 pt-4">
+              <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
+                Tools
+              </p>
+              <button
+                type="button"
+                onClick={handleToggleLeftPanel}
+                className="rounded p-1 text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
+                aria-label="Collapse left panel"
+                title="Collapse panel"
+              >
+                <ArrowLineLeft size={14} weight="bold" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 pb-4 pt-3">
+              <Toolbar editor={editor} activeTool={activeTool} onToolClick={handleToolClick} />
+            </div>
+            <div className="flex flex-col gap-1 border-t border-hairline p-4">
+              <button
+                type="button"
+                onClick={() => setDictionaryOpen(true)}
+                className="group flex items-center gap-2.5 rounded px-2 py-1.5 text-left text-sm text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
+                aria-label="Open your dictionary"
+              >
+                <BookBookmark
+                  size={16}
+                  weight="bold"
+                  className="transition-transform duration-200 group-hover:scale-110"
+                />
+                <span>Your Dictionary</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className="group flex items-center gap-2.5 rounded px-2 py-1.5 text-left text-sm text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
+                aria-label="Open settings"
+              >
+                <Gear
+                  size={16}
+                  weight="bold"
+                  className="transition-transform duration-200 group-hover:rotate-45"
+                />
+                <span>Settings</span>
+              </button>
+            </div>
+          </aside>
+        </div>
+        {/* Edge rail — always mounted (visibility toggled via classes, never
+            unmounted) so clicking it doesn't remove a sibling DOM node in the
+            same commit as the panel's class change, which would make Chromium
+            skip the open transition. Click or (in Focus Mode) hover restores
+            the panel. Always faintly visible + wider so users can discover it. */}
+        <div
+          onMouseEnter={() => focusMode && setLeftPeek(true)}
+          onMouseLeave={() => setLeftPeek(false)}
+          className={
+            "group absolute left-0 top-0 z-10 flex h-full w-6 items-center justify-center bg-hairline/40 transition-colors hover:bg-hairline " +
+            (leftVisible
+              ? "pointer-events-none opacity-0"
+              : "cursor-pointer")
+          }
+          onClick={handleToggleLeftPanel}
+          aria-label="Show left panel"
+          title="Show left panel"
+        >
+          <ArrowSquareRight
+            size={14}
+            weight="bold"
+            className="text-muted/60 transition-opacity group-hover:text-muted"
+          />
+        </div>
 
         <section className="flex-1 min-w-0 p-6">
           <Editor
@@ -798,31 +965,65 @@ export default function App() {
             toneResult={toneResult}
           />
         </section>
-
-        <aside className={"w-80 shrink-0 border-l border-hairline " + panelDim}>
-          <ReviewPanel
-            editor={editor}
-            selectedText={selectedText}
-            activeTool={activeTool}
-            grammarMatches={grammarMatches}
-            checking={checking}
-            activeErrorId={activeErrorId}
-            onApply={handleApplySuggestion}
-            onDismiss={handleDismiss}
-            onAddToDictionary={handleAddToDictionary}
-            onLocate={handleLocate}
-            onClear={() => {
-              setActiveTool("");
-              setGrammarMatches([]);
-              setActiveErrorId(null);
-              activeErrorRef.current = null;
-              setHoveredError(null);
-              if (editor) {
-                clearGrammarDecorations(editor);
-              }
-            }}
+        <div
+          ref={rightPanelRef}
+          className={
+            "shrink-0 w-80 overflow-hidden border-l border-hairline " +
+            rightPanelClass +
+            (rightVisible ? " " + panelDim : "")
+          }
+          onMouseLeave={() => focusMode && setRightPeek(false)}
+        >
+          <aside className="flex h-full w-80 flex-col">
+            <ReviewPanel
+              editor={editor}
+              selectedText={selectedText}
+              activeTool={activeTool}
+              grammarMatches={grammarMatches}
+              checking={checking}
+              activeErrorId={activeErrorId}
+              onApply={handleApplySuggestion}
+              onDismiss={handleDismiss}
+              onAddToDictionary={handleAddToDictionary}
+              onLocate={handleLocate}
+              onCollapse={handleToggleRightPanel}
+              onClear={() => {
+                setActiveTool("");
+                setGrammarMatches([]);
+                setActiveErrorId(null);
+                activeErrorRef.current = null;
+                setHoveredError(null);
+                if (editor) {
+                  clearGrammarDecorations(editor);
+                }
+              }}
+            />
+          </aside>
+        </div>
+        {/* Edge rail — always mounted (visibility toggled via classes, never
+            unmounted) so clicking it doesn't remove a sibling DOM node in the
+            same commit as the panel's class change, which would make Chromium
+            skip the open transition. Click or (in Focus Mode) hover restores
+            the panel. Always faintly visible + wider so users can discover it. */}
+        <div
+          onMouseEnter={() => focusMode && setRightPeek(true)}
+          onMouseLeave={() => setRightPeek(false)}
+          className={
+            "group absolute right-0 top-0 z-10 flex h-full w-6 items-center justify-center bg-hairline/40 transition-colors hover:bg-hairline " +
+            (rightVisible
+              ? "pointer-events-none opacity-0"
+              : "cursor-pointer")
+          }
+          onClick={handleToggleRightPanel}
+          aria-label="Show right panel"
+          title="Show right panel"
+        >
+          <ArrowSquareLeft
+            size={14}
+            weight="bold"
+            className="text-muted/60 transition-opacity group-hover:text-muted"
           />
-        </aside>
+        </div>
       </main>
 
       {hoveredError && (

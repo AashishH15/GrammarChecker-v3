@@ -1,5 +1,6 @@
 import SuggestionCard from "./SuggestionCard.jsx";
 import DocStats from "./DocStats.jsx";
+import { ArrowLineRight } from "@phosphor-icons/react";
 
 export default function ReviewPanel({
   editor,
@@ -11,16 +12,25 @@ export default function ReviewPanel({
   onDismiss,
   onAddToDictionary,
   onLocate,
+  onCollapse,
   onClear,
 }) {
   const count = grammarMatches.length;
 
   return (
-    <div className="flex h-full flex-col p-6">
-      <div className="flex items-center justify-between">
-        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
-          Review Panel
-        </p>
+    <div className="flex h-full flex-col px-6 pb-6 pt-4">
+      <div className="flex items-center justify-between gap-3">
+        {onCollapse && (
+          <button
+            type="button"
+            onClick={onCollapse}
+            className="rounded p-1 text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
+            aria-label="Collapse right panel"
+            title="Collapse panel"
+          >
+            <ArrowLineRight size={14} weight="bold" />
+          </button>
+        )}
         <div className="flex items-center gap-3">
           {activeTool && count > 0 && (
             <span className="rounded-full bg-pale-green px-2.5 py-px font-mono text-[10px] uppercase tracking-widest text-pale-green-text">
@@ -36,6 +46,9 @@ export default function ReviewPanel({
               Clear
             </button>
           )}
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
+            Review Panel
+          </p>
         </div>
       </div>
 
