@@ -24,6 +24,7 @@ import { ProofreadShortcut } from "./proofreadShortcut.js";
 import { detectTone } from "./toneScore.js";
 import Toolbar from "./Toolbar.jsx";
 import Editor from "./Editor.jsx";
+import ImportExportMenu from "./ImportExportMenu.jsx";
 import ReviewPanel from "./ReviewPanel.jsx";
 import GrammarTooltip from "./GrammarTooltip.jsx";
 import Settings, { SETTINGS_DEFAULTS } from "./Settings.jsx";
@@ -1029,7 +1030,7 @@ export default function App() {
   }, [rightVisible]);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-canvas text-ink">
+    <div className="lex-app-shell flex flex-col h-screen overflow-hidden bg-canvas text-ink">
       <header className="flex items-center justify-between px-6 h-14 border-b border-hairline">
         <div className="leading-tight">
           <span className="block font-serif text-lg tracking-tight">Lexicon</span>
@@ -1038,6 +1039,7 @@ export default function App() {
           </span>
         </div>
         <div className="flex items-center gap-3">
+          <ImportExportMenu editor={editor} />
           <button
             type="button"
             onClick={() => handleFocusModeChange(!focusMode)}
@@ -1072,7 +1074,7 @@ export default function App() {
           ref={leftPanelRef}
           style={{ width: leftWidth }}
           className={
-            "relative shrink-0 overflow-hidden border-r border-hairline transition-opacity duration-200 " +
+            "lex-no-print relative shrink-0 overflow-hidden border-r border-hairline transition-opacity duration-200 " +
             (leftVisible ? " " + panelDim : "") +
             (aboutToCollapse === "left" ? " opacity-70" : "")
           }
@@ -1196,7 +1198,7 @@ export default function App() {
           ref={rightPanelRef}
           style={{ width: rightWidth }}
           className={
-            "relative shrink-0 overflow-hidden border-l border-hairline transition-opacity duration-200 " +
+            "lex-no-print relative shrink-0 overflow-hidden border-l border-hairline transition-opacity duration-200 " +
             (rightVisible ? " " + panelDim : "") +
             (aboutToCollapse === "right" ? " opacity-70" : "")
           }

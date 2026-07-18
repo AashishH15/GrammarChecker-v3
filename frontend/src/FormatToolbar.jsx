@@ -43,6 +43,7 @@ import {
   Wrench,
 } from "@phosphor-icons/react";
 
+
 const buttons = [
   { icon: ArrowCounterClockwise, label: "Undo", action: (e) => e.chain().focus().undo().run(), isActive: () => false, canRun: (e) => e.can().undo() },
   { icon: ArrowClockwise, label: "Redo", action: (e) => e.chain().focus().redo().run(), isActive: () => false, canRun: (e) => e.can().redo() },
@@ -766,7 +767,7 @@ export default function FormatToolbar({ editor, onRequestLink, onRequestMath }) 
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-hairline pb-2 mb-3">
+    <div className="lex-no-print flex flex-wrap items-center gap-1 border-b border-hairline pb-2 mb-3">
       {buttons.map(({ icon: Icon, label, action }, i) => (
         <button
           key={label}
