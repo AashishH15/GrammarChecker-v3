@@ -15,34 +15,64 @@ The earlier versions were desktop Tkinter apps with weak engines:
 Both were dated desktop UIs. Lexicon moves to a browser-based app and pairs a real
 grammar engine with a local LLM for rewriting and tone.
 
-## What it does
+## Layout
 
-Pick some text and run one of the tools. Results show up in a side-by-side
-output pane.
+Lexicon is a three-column workspace:
 
-- **Proofread**: grammar, spelling, and clarity pass with a diff view
-- **Rewrite**: neutral rewording
-- **Friendly**: warmer, more casual tone
-- **Professional**: formal, business tone
-- **Concise**: tighter wording, less fluff
-- **Summary**: condense to a short paragraph
-- **Key Points**: extract the main takeaways as bullets
-- **List**: turn prose into a structured list
-- **Table**: turn prose into a table
+- **Tool Matrix (left):** the actions panel; Proofread and the AI writing
+  tools, plus quick access to your dictionary and settings.
+- **Editor (center):** a full rich-text canvas with a formatting
+  toolbar, inline grammar squiggles, and a slash-command menu.
+- **Review Panel (right):** grammar/clarity suggestion cards you can apply or
+  dismiss, a tone read, and a clarity score.
 
-Inline grammar squiggles (from LanguageTool) live in the editor itself, like
-real Grammarly.
+Both side panels can be collapsed, resized, or hidden entirely via Focus Mode
+for a distraction-free, full-width editor.
 
-## How it works
+### Writing canvas
 
-- **Frontend**: React + Vite + Tailwind, with a TipTap editor for rich text
-  and Grammarly-style inline suggestions.
-- **Backend**: Python FastAPI, serving the frontend and a small REST API.
-- **Grammar engine**: LanguageTool (rule-based, runs locally).
-- **AI engine**: Ollama running a local model. No internet required.
+A rich, Grammarly-style editor:
 
-Everything runs offline. The only setup step is pulling a model once with
-`ollama pull <model>`.
+- **Formatting:** bold, italic, underline, strikethrough, highlight,
+  superscript/subscript, inline code, and links (with an inline URL popover).
+- **Structure:** headings (H1–H6), bullet / numbered / task lists, blockquotes,
+  text alignment, code blocks with syntax highlighting, images, and tables
+  (Google-Docs-style grid picker + full row/column editing).
+- **Math:** inline (`$...$`) and block (`$$$...$$$`) LaTeX rendered with KaTeX,
+  with a live-preview editor popover.
+- **Smart typography:** automatic em-dashes, ellipses, and smart quotes.
+- **Slash commands:** type `/` anywhere to open a filterable command menu with
+  full keyboard navigation and multi-select mark toggling.
+- **Drag handles**, a **placeholder** for empty drafts, and content
+  **auto-saved** to `localStorage`.
+
+### Grammar & review
+
+- **Inline squiggles:** LanguageTool errors render as faint red highlights
+  directly in the editor, like real Grammarly.
+- **Suggestion cards:** hover or click a squiggle to jump to its card in the
+  Review Panel; apply or dismiss individual fixes, or **Accept all / Dismiss
+  all** in one pass. Dismissed suggestions stay dismissed across re-runs.
+- **Tone detection** and a **clarity score** summarize the draft.
+- **User dictionary:** add words so they stop being flagged (persisted, with a
+  dedicated management panel).
+
+### Import / Export
+
+- **Import:** `.txt`, `.md` / `.markdown`, and `.html` files load straight into
+  the editor.
+- **Export:** save your document as **HTML**, **Plain Text**, **Markdown**, or
+  **PDF**. PDF export uses the browser's print pipeline with a dedicated print
+  stylesheet for a clean "final manuscript" page — user highlights are
+  preserved, grammar squiggles and app chrome are stripped, and page margins
+  are set for a proper document look.
+
+### Settings & shortcuts
+
+- Language picker, font size, line spacing, and Focus Mode, with **smart
+  defaults** and a one-click **Reset to Default**.
+- Keyboard shortcuts (e.g. `Ctrl/Cmd + Enter` to Proofread, accept/dismiss
+  shortcuts, `Esc` / `Mod-,` for settings) with an in-app cheat sheet.
 
 ## Running the backend
 
@@ -74,21 +104,28 @@ npm install
 npm run dev
 ```
 
-The app is then available at http://localhost:5173.
+The app is then available at http://localhost:5173 (or 5174 if 5173 is busy).
 
-## Credits
+> **Note:** TipTap is pinned to `3.27.4`. When adding a new `@tiptap/*`
+> package, install it with `--save-exact @3.27.4` to keep every extension on
+> the same version.
+
+## Acknowledgements
 
 Lexicon is built on the shoulders of several super awesome open-source projects and tools:
 
 - **[TipTap](https://github.com/ueberdosis/tiptap):** the headless rich-text editor framework
   (built on ProseMirror) that powers the writing canvas, inline grammar
   squiggles, and formatting toolbar.
+- **[KaTeX](https://github.com/KaTeX/KaTeX):** renders the inline and block LaTeX math.
+- **[lowlight](https://github.com/wooorm/lowlight):** syntax highlighting for code blocks.
+- **[marked](https://github.com/markedjs/marked)** & **[Turndown](https://github.com/mixmark-io/turndown):** Markdown import and export conversion.
 - **[Phosphor Icons](https://github.com/phosphor-icons/homepage):** the icon set used across
   the tool matrix, format toolbar, settings, and suggestion cards.
 - **[LanguageTool](https://github.com/languagetool-org/languagetool):** the rule-based grammar and
   spell-checking engine (`language_tool_python`) that drives inline squiggles
   and the Proofread pass.
-- **[React](https://github.com/react/react):** the UI library behind the frontend.
+- **[React](https://github.com/facebook/react):** the UI library behind the frontend.
 - **[Vite](https://github.com/vitejs/vite):** the build tool and dev server.
 - **[Tailwind CSS](https://github.com/tailwindlabs/tailwindcss):** the utility-first styling
   layer that implements the Lexicon design system.
