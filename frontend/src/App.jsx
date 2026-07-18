@@ -134,6 +134,11 @@ function loadPanelWidth(key, fallback) {
   return Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, v));
 }
 
+// Platform hint used for shortcut labels (⌘ on macOS, Ctrl elsewhere).
+const isMac =
+  typeof navigator !== "undefined" &&
+  /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+
 function selectionText(editor) {
   const { from, to } = editor.state.selection;
   return editor.state.doc.textBetween(from, to, " ");
@@ -1110,7 +1115,13 @@ export default function App() {
               </button>
             </div>
             <div className="lex-scroll flex-1 overflow-y-auto px-4 pb-4 pt-3">
-              <Toolbar editor={editor} activeTool={activeTool} onToolClick={handleToolClick} />
+              <Toolbar
+                editor={editor}
+                activeTool={activeTool}
+                onToolClick={handleToolClick}
+                panelWidth={leftWidth}
+                isMac={isMac}
+              />
             </div>
             <div className="flex flex-col gap-1 border-t border-hairline p-4">
               <button

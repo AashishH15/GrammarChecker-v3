@@ -51,7 +51,11 @@ const groups = [
   },
 ];
 
-export default function Toolbar({ editor, activeTool, onToolClick }) {
+export default function Toolbar({ editor, activeTool, onToolClick, panelWidth, isMac }) {
+  // Below this panel width the Proofread shortcut hint can't fit alongside
+  // the label, so we drop it to keep the row from wrapping/cramping.
+  const showProofreadHint = (panelWidth ?? 256) >= 220;
+  const proofreadHint = isMac ? "⌘ + ↵" : "Ctrl + ↵";
   return (
     <nav className="flex flex-col gap-6">
       {groups.map((group) => (
@@ -81,6 +85,11 @@ export default function Toolbar({ editor, activeTool, onToolClick }) {
                   <span className="transition-transform duration-200 group-hover:scale-105">
                     {name}
                   </span>
+                  {name === "Proofread" && showProofreadHint && (
+                    <kbd className="ml-auto rounded border border-current/30 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider opacity-60">
+                      {proofreadHint}
+                    </kbd>
+                  )}
                 </button>
               </li>
             ))}

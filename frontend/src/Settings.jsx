@@ -30,9 +30,10 @@ export const SETTINGS_DEFAULTS = {
 
 const isMac =
   typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-const mod = isMac ? "Cmd" : "Ctrl";
+const mod = isMac ? "⌘" : "Ctrl";
 
 const SHORTCUTS = [
+  { action: "Open command menu", keys: ["type /"] },
   { action: "Trigger Proofread", keys: [mod, "Enter"] },
   { action: "Accept Suggestion", keys: ["Ctrl", "Alt", "A"] },
   { action: "Dismiss Suggestion", keys: ["Ctrl", "Alt", "D"] },
@@ -42,6 +43,12 @@ const SHORTCUTS = [
   { action: "Italic", keys: [mod, "I"] },
   { action: "Underline", keys: [mod, "U"] },
   { action: "Strikethrough", keys: [mod, "Shift", "S"] },
+  { action: "Highlight", keys: [mod, "Shift", "H"] },
+  { action: "Inline code", keys: [mod, "E"] },
+  { action: "Align left", keys: [mod, "Shift", "L"] },
+  { action: "Align center", keys: [mod, "Shift", "E"] },
+  { action: "Align right", keys: [mod, "Shift", "R"] },
+  { action: "Align justify", keys: [mod, "Shift", "J"] },
   { action: "Heading 1", keys: [mod, "Alt", "1"] },
   { action: "Heading 2", keys: [mod, "Alt", "2"] },
   { action: "Heading 3", keys: [mod, "Alt", "3"] },
