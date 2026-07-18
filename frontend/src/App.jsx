@@ -935,7 +935,7 @@ export default function App() {
                 <ArrowLineLeft size={14} weight="bold" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 pb-4 pt-3">
+            <div className="lex-scroll flex-1 overflow-y-auto px-4 pb-4 pt-3">
               <Toolbar editor={editor} activeTool={activeTool} onToolClick={handleToolClick} />
             </div>
             <div className="flex flex-col gap-1 border-t border-hairline p-4">
