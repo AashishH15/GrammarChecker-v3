@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -159,6 +159,25 @@ export default function App() {
   );
   const [leftPeek, setLeftPeek] = useState(false);
   const [rightPeek, setRightPeek] = useState(false);
+  // Focus Mode: when on, panels auto-collapse for a distraction-free view
+  const leftCloseTimer = useRef(null);
+  const rightCloseTimer = useRef(null);
+  const openLeftPeek = useCallback(() => {
+    clearTimeout(leftCloseTimer.current);
+    setLeftPeek(true);
+  }, []);
+  const scheduleCloseLeft = useCallback(() => {
+    clearTimeout(leftCloseTimer.current);
+    leftCloseTimer.current = setTimeout(() => setLeftPeek(false), 180);
+  }, []);
+  const openRightPeek = useCallback(() => {
+    clearTimeout(rightCloseTimer.current);
+    setRightPeek(true);
+  }, []);
+  const scheduleCloseRight = useCallback(() => {
+    clearTimeout(rightCloseTimer.current);
+    rightCloseTimer.current = setTimeout(() => setRightPeek(false), 180);
+  }, []);
 
   const proofreadRef = useRef(() => {});
   const activeErrorRef = useRef(null);
@@ -607,16 +626,12 @@ export default function App() {
   function handleFocusModeChange(next) {
     setFocusMode(next);
     localStorage.setItem(focusModeKey, String(next));
-  }
-
-  function setLeftPanel(next) {
-    setLeftPanelOpen(next);
-    localStorage.setItem(leftPanelKey, String(next));
-  }
-
-  function setRightPanel(next) {
-    setRightPanelOpen(next);
-    localStorage.setItem(rightPanelKey, String(next));
+    // Leaving Focus Mode restores the user's normal open/collapsed preference
+    // and clears any transient peek.
+    if (!next) {
+      setLeftPeek(false);
+      setRightPeek(false);
+    }
   }
 
   function handleToggleLeftPanel() {
@@ -635,10 +650,31 @@ export default function App() {
     });
   }
 
-  function handleToggleFullscreen() {
-    const shouldCollapse = leftPanelOpen || rightPanelOpen;
-    setLeftPanel(!shouldCollapse);
-    setRightPanel(!shouldCollapse);
+  // In Focus Mode the edge rail is hover-to-peek only
+  function handleRailLeftClick() {
+    if (!focusMode) handleToggleLeftPanel();
+  }
+
+  function handleRailRightClick() {
+    if (!focusMode) handleToggleRightPanel();
+  }
+
+  function handleCollapseLeft() {
+    if (focusMode) {
+      clearTimeout(leftCloseTimer.current);
+      setLeftPeek(false);
+    } else {
+      handleToggleLeftPanel();
+    }
+  }
+
+  function handleCollapseRight() {
+    if (focusMode) {
+      clearTimeout(rightCloseTimer.current);
+      setRightPeek(false);
+    } else {
+      handleToggleRightPanel();
+    }
   }
 
   function handleLineSpacingChange(next) {
@@ -788,8 +824,8 @@ export default function App() {
     "transition-opacity duration-700 ease-in-out " +
     (dimmed ? "opacity-[0.02] hover:opacity-100" : "opacity-100");
 
-  const leftVisible = leftPanelOpen || (focusMode && leftPeek);
-  const rightVisible = rightPanelOpen || (focusMode && rightPeek);
+  const leftVisible = focusMode ? leftPeek : leftPanelOpen;
+  const rightVisible = focusMode ? rightPeek : rightPanelOpen;
 
   const leftPanelClass = leftVisible ? "ml-0" : "-ml-64";
   const rightPanelClass = rightVisible ? "mr-0" : "-mr-80";
@@ -835,7 +871,7 @@ export default function App() {
   }, [rightVisible]);
 
   return (
-    <div className="flex flex-col h-screen bg-canvas text-ink">
+    <div className="flex flex-col h-screen overflow-hidden bg-canvas text-ink">
       <header className="flex items-center justify-between px-6 h-14 border-b border-hairline">
         <div className="leading-tight">
           <span className="block font-serif text-lg tracking-tight">Lexicon</span>
@@ -846,15 +882,20 @@ export default function App() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={handleToggleFullscreen}
-            className="rounded p-1.5 text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
-            aria-label={leftPanelOpen || rightPanelOpen ? "Fullscreen editor" : "Exit fullscreen"}
-            title={leftPanelOpen || rightPanelOpen ? "Fullscreen editor" : "Exit fullscreen"}
+            onClick={() => handleFocusModeChange(!focusMode)}
+            className={
+              "rounded p-1.5 transition-colors " +
+              (focusMode
+                ? "bg-accent/15 text-accent hover:bg-accent/25"
+                : "text-muted hover:bg-hairline/60 hover:text-ink")
+            }
+            aria-label={focusMode ? "Exit focus" : "Enter focus"}
+            title={focusMode ? "Exit focus" : "Enter focus"}
           >
-            {leftPanelOpen || rightPanelOpen ? (
-              <ArrowsOut size={16} weight="bold" />
-            ) : (
+            {focusMode ? (
               <ArrowsIn size={16} weight="bold" />
+            ) : (
+              <ArrowsOut size={16} weight="bold" />
             )}
           </button>
           <button
@@ -868,7 +909,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="relative flex flex-1 min-h-0">
+      <main className="relative flex flex-1 min-h-0 overflow-x-hidden">
         <div
           ref={leftPanelRef}
           className={
@@ -876,7 +917,8 @@ export default function App() {
             leftPanelClass +
             (leftVisible ? " " + panelDim : "")
           }
-          onMouseLeave={() => focusMode && setLeftPeek(false)}
+          onMouseEnter={() => focusMode && openLeftPeek()}
+          onMouseLeave={() => focusMode && scheduleCloseLeft()}
         >
           <aside className="flex h-full w-64 flex-col">
             <div className="flex items-center justify-between px-4 pt-4">
@@ -885,7 +927,7 @@ export default function App() {
               </p>
               <button
                 type="button"
-                onClick={handleToggleLeftPanel}
+                onClick={handleCollapseLeft}
                 className="rounded p-1 text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
                 aria-label="Collapse left panel"
                 title="Collapse panel"
@@ -932,15 +974,15 @@ export default function App() {
             skip the open transition. Click or (in Focus Mode) hover restores
             the panel. Always faintly visible + wider so users can discover it. */}
         <div
-          onMouseEnter={() => focusMode && setLeftPeek(true)}
-          onMouseLeave={() => setLeftPeek(false)}
+          onMouseEnter={() => focusMode && openLeftPeek()}
+          onMouseLeave={() => focusMode && scheduleCloseLeft()}
           className={
             "group absolute left-0 top-0 z-10 flex h-full w-6 items-center justify-center bg-hairline/40 transition-colors hover:bg-hairline " +
             (leftVisible
               ? "pointer-events-none opacity-0"
               : "cursor-pointer")
           }
-          onClick={handleToggleLeftPanel}
+          onClick={handleRailLeftClick}
           aria-label="Show left panel"
           title="Show left panel"
         >
@@ -972,7 +1014,8 @@ export default function App() {
             rightPanelClass +
             (rightVisible ? " " + panelDim : "")
           }
-          onMouseLeave={() => focusMode && setRightPeek(false)}
+          onMouseEnter={() => focusMode && openRightPeek()}
+          onMouseLeave={() => focusMode && scheduleCloseRight()}
         >
           <aside className="flex h-full w-80 flex-col">
             <ReviewPanel
@@ -986,7 +1029,7 @@ export default function App() {
               onDismiss={handleDismiss}
               onAddToDictionary={handleAddToDictionary}
               onLocate={handleLocate}
-              onCollapse={handleToggleRightPanel}
+              onCollapse={handleCollapseRight}
               onClear={() => {
                 setActiveTool("");
                 setGrammarMatches([]);
@@ -1006,15 +1049,15 @@ export default function App() {
             skip the open transition. Click or (in Focus Mode) hover restores
             the panel. Always faintly visible + wider so users can discover it. */}
         <div
-          onMouseEnter={() => focusMode && setRightPeek(true)}
-          onMouseLeave={() => setRightPeek(false)}
+          onMouseEnter={() => focusMode && openRightPeek()}
+          onMouseLeave={() => focusMode && scheduleCloseRight()}
           className={
             "group absolute right-0 top-0 z-10 flex h-full w-6 items-center justify-center bg-hairline/40 transition-colors hover:bg-hairline " +
             (rightVisible
               ? "pointer-events-none opacity-0"
               : "cursor-pointer")
           }
-          onClick={handleToggleRightPanel}
+          onClick={handleRailRightClick}
           aria-label="Show right panel"
           title="Show right panel"
         >

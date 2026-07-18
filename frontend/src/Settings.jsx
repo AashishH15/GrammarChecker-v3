@@ -185,10 +185,9 @@ export default function Settings({
                 Focus Mode
               </p>
               <p className="mt-1 font-sans text-xs text-muted">
-                Fades the interface layout while typing to maximize core writing
-                concentration. Disabled automatically whenever a tool is active
-                (Proofread, Rewrite, etc.), since both side panels are then in
-                use.
+                Collapses both side panels for a distraction-free writing view.
+                Hover a screen-edge rail to peek a panel open; it auto-closes
+                when you move away.
               </p>
             </div>
             <div className="pt-0.5">
