@@ -84,6 +84,13 @@ const lineSpacingKey = "lexicon:lineSpacing";
 const dictionaryKey = "lexicon:user_dictionary";
 const leftPanelKey = "lexicon:leftPanelOpen";
 const rightPanelKey = "lexicon:rightPanelOpen";
+const leftWidthKey = "lexicon:leftPanelWidth";
+const rightWidthKey = "lexicon:rightPanelWidth";
+const MIN_PANEL_WIDTH = 175;
+const MAX_PANEL_WIDTH = 575;
+// How far past the hard-stop (MIN_PANEL_WIDTH) the user must keep pulling
+// before releasing collapses the panel. Gives a felt "stop" before close.
+const COLLAPSE_PAST = 100;
 
 function loadContent() {
   const saved = localStorage.getItem(storageKey);
@@ -119,6 +126,12 @@ function loadDictionary() {
   } catch {
     return [];
   }
+}
+
+function loadPanelWidth(key, fallback) {
+  const v = parseInt(localStorage.getItem(key), 10);
+  if (Number.isNaN(v)) return fallback;
+  return Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, v));
 }
 
 function selectionText(editor) {
@@ -158,6 +171,12 @@ export default function App() {
   );
   const [rightPanelOpen, setRightPanelOpen] = useState(() =>
     loadPanelOpen(rightPanelKey),
+  );
+  const [leftWidth, setLeftWidth] = useState(() =>
+    loadPanelWidth(leftWidthKey, 256),
+  );
+  const [rightWidth, setRightWidth] = useState(() =>
+    loadPanelWidth(rightWidthKey, 320),
   );
   const [leftPeek, setLeftPeek] = useState(false);
   const [rightPeek, setRightPeek] = useState(false);
@@ -706,6 +725,76 @@ export default function App() {
     });
   }
 
+  const [resizing, setResizing] = useState(null); // "left" | "right" | null
+  function startResize(side) {
+    return (e) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startWidth = side === "left" ? leftWidth : rightWidth;
+      let rafId = null;
+      let latest = startWidth;
+      let overshoot = 0;
+      setResizing(side);
+      const onMove = (ev) => {
+        const delta = ev.clientX - startX;
+        // Left panel grows when dragged right; right panel grows when dragged left.
+        let raw = side === "left" ? startWidth + delta : startWidth - delta;
+        raw = Math.min(MAX_PANEL_WIDTH, raw);
+        if (raw <= MIN_PANEL_WIDTH) {
+          // Hard stop: clamp at the minimum and remember how far past it the
+          // pointer kept travelling, so a deliberate pull-past can close it.
+          latest = MIN_PANEL_WIDTH;
+          overshoot = MIN_PANEL_WIDTH - raw;
+        } else {
+          latest = raw;
+          overshoot = 0;
+        }
+        if (rafId == null) {
+          rafId = requestAnimationFrame(() => {
+            rafId = null;
+            if (side === "left") setLeftWidth(latest);
+            else setRightWidth(latest);
+          });
+        }
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        if (rafId != null) cancelAnimationFrame(rafId);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+        setResizing(null);
+        if (overshoot >= COLLAPSE_PAST) {
+          const reset = side === "left"
+            ? Math.max(startWidth, 256)
+            : Math.max(startWidth, 320);
+          if (side === "left") {
+            setLeftPanelOpen(false);
+            setLeftWidth(reset);
+            localStorage.setItem(leftWidthKey, String(reset));
+          } else {
+            setRightPanelOpen(false);
+            setRightWidth(reset);
+            localStorage.setItem(rightWidthKey, String(reset));
+          }
+        } else {
+          const final = latest;
+          if (side === "left") {
+            setLeftWidth(final);
+            localStorage.setItem(leftWidthKey, String(final));
+          } else {
+            setRightWidth(final);
+            localStorage.setItem(rightWidthKey, String(final));
+          }
+        }
+      };
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "ew-resize";
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    };
+  }
+
   // In Focus Mode the edge rail is hover-to-peek only
   function handleRailLeftClick() {
     if (!focusMode) handleToggleLeftPanel();
@@ -882,11 +971,12 @@ export default function App() {
 
   const leftVisible = focusMode ? leftPeek : leftPanelOpen;
   const rightVisible = focusMode ? rightPeek : rightPanelOpen;
-
-  const leftPanelClass = leftVisible ? "ml-0" : "-ml-64";
-  const rightPanelClass = rightVisible ? "mr-0" : "-mr-80";
   const leftPanelRef = useRef(null);
   const rightPanelRef = useRef(null);
+  const leftWidthRef = useRef(leftWidth);
+  leftWidthRef.current = leftWidth;
+  const rightWidthRef = useRef(rightWidth);
+  rightWidthRef.current = rightWidth;
   const leftAnimRef = useRef(null);
   const rightAnimRef = useRef(null);
   const playSlide = (animRef, el, marginProp, toTransform, toMargin) => {
@@ -906,23 +996,25 @@ export default function App() {
   useLayoutEffect(() => {
     const el = leftPanelRef.current;
     if (!el) return;
+    const w = leftWidthRef.current;
     playSlide(
       leftAnimRef,
       el,
       "marginLeft",
-      leftVisible ? "translateX(0px)" : "translateX(-256px)",
-      leftVisible ? "0px" : "-256px",
+      leftVisible ? "translateX(0px)" : `translateX(-${w}px)`,
+      leftVisible ? "0px" : `-${w}px`,
     );
   }, [leftVisible]);
   useLayoutEffect(() => {
     const el = rightPanelRef.current;
     if (!el) return;
+    const w = rightWidthRef.current;
     playSlide(
       rightAnimRef,
       el,
       "marginRight",
-      rightVisible ? "translateX(0px)" : "translateX(320px)",
-      rightVisible ? "0px" : "-320px",
+      rightVisible ? "translateX(0px)" : `translateX(${w}px)`,
+      rightVisible ? "0px" : `-${w}px`,
     );
   }, [rightVisible]);
 
@@ -968,15 +1060,28 @@ export default function App() {
       <main className="relative flex flex-1 min-h-0 overflow-x-hidden">
         <div
           ref={leftPanelRef}
+          style={{ width: leftWidth }}
           className={
-            "shrink-0 w-64 overflow-hidden border-r border-hairline " +
-            leftPanelClass +
+            "relative shrink-0 overflow-hidden border-r border-hairline " +
             (leftVisible ? " " + panelDim : "")
           }
           onMouseEnter={() => focusMode && openLeftPeek()}
           onMouseLeave={() => focusMode && scheduleCloseLeft()}
         >
-          <aside className="flex h-full w-64 flex-col">
+          <aside className="flex h-full w-full flex-col">
+          {!focusMode && leftPanelOpen && (
+            <div
+              onPointerDown={startResize("left")}
+              className={
+                "absolute right-0 top-0 z-20 h-full w-1.5 cursor-ew-resize transition-colors " +
+                (resizing === "left"
+                  ? "bg-accent/60"
+                  : "bg-transparent hover:bg-accent/30")
+              }
+              title="Drag to resize"
+              aria-label="Resize left panel"
+            />
+          )}
             <div className="flex items-center justify-between px-4 pt-4">
               <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
                 Actions
@@ -1065,15 +1170,28 @@ export default function App() {
         </section>
         <div
           ref={rightPanelRef}
+          style={{ width: rightWidth }}
           className={
-            "shrink-0 w-80 overflow-hidden border-l border-hairline " +
-            rightPanelClass +
+            "relative shrink-0 overflow-hidden border-l border-hairline " +
             (rightVisible ? " " + panelDim : "")
           }
           onMouseEnter={() => focusMode && openRightPeek()}
           onMouseLeave={() => focusMode && scheduleCloseRight()}
         >
-          <aside className="flex h-full w-80 flex-col">
+          <aside className="flex h-full w-full flex-col">
+          {!focusMode && rightPanelOpen && (
+            <div
+              onPointerDown={startResize("right")}
+              className={
+                "absolute left-0 top-0 z-20 h-full w-1.5 cursor-ew-resize transition-colors " +
+                (resizing === "right"
+                  ? "bg-accent/60"
+                  : "bg-transparent hover:bg-accent/30")
+              }
+              title="Drag to resize"
+              aria-label="Resize right panel"
+            />
+          )}
             <ReviewPanel
               editor={editor}
               selectedText={selectedText}
