@@ -68,7 +68,8 @@ export default function ImportExportMenu({ editor }) {
       const md = turndown.turndown(editor.getHTML());
       downloadBlob(md, "document.md", "text/markdown");
     } else if (kind === "pdf") {
-      window.print();
+      setOpen(false);
+      requestAnimationFrame(() => window.print());
     }
   }
 

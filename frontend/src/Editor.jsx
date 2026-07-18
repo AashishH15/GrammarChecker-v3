@@ -381,7 +381,7 @@ export default function Editor({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="lex-no-print mb-3 flex items-center justify-between">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">
           Source Document
         </p>
@@ -402,7 +402,7 @@ export default function Editor({
       </div>
 
       {collapsed ? (
-        <div className="mt-4 grid grid-cols-2 gap-4 mb-6">
+        <div className="lex-no-print mt-4 grid grid-cols-2 gap-4 mb-6">
           <div className="lex-card-enter flex items-center justify-between rounded border border-hairline bg-white px-4 py-3">
             <span className="font-mono text-xs uppercase leading-none tracking-widest text-[#787774]">
               Clarity Score
@@ -422,7 +422,7 @@ export default function Editor({
         </div>
       ) : (
         <div
-          className="mt-4 grid grid-cols-2 gap-4 mb-6"
+          className="lex-no-print mt-4 grid grid-cols-2 gap-4 mb-6"
           onMouseEnter={() => setShowBreakdown(true)}
           onMouseLeave={() => setShowBreakdown(false)}
         >

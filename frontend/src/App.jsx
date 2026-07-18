@@ -1031,7 +1031,7 @@ export default function App() {
 
   return (
     <div className="lex-app-shell flex flex-col h-screen overflow-hidden bg-canvas text-ink">
-      <header className="flex items-center justify-between px-6 h-14 border-b border-hairline">
+      <header className="lex-no-print flex items-center justify-between px-6 h-14 border-b border-hairline">
         <div className="leading-tight">
           <span className="block font-serif text-lg tracking-tight">Lexicon</span>
           <span className="block font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
@@ -1164,7 +1164,7 @@ export default function App() {
           onMouseEnter={() => focusMode && openLeftPeek()}
           onMouseLeave={() => focusMode && scheduleCloseLeft()}
           className={
-            "group absolute left-0 top-0 z-10 flex h-full w-6 items-center justify-center bg-hairline/40 transition-colors hover:bg-hairline " +
+            "lex-no-print group absolute left-0 top-0 z-10 flex h-full w-6 items-center justify-center bg-hairline/40 transition-colors hover:bg-hairline " +
             (leftVisible
               ? "pointer-events-none opacity-0"
               : "cursor-pointer")
@@ -1258,7 +1258,7 @@ export default function App() {
           onMouseEnter={() => focusMode && openRightPeek()}
           onMouseLeave={() => focusMode && scheduleCloseRight()}
           className={
-            "group absolute right-0 top-0 z-10 flex h-full w-6 items-center justify-center bg-hairline/40 transition-colors hover:bg-hairline " +
+            "lex-no-print group absolute right-0 top-0 z-10 flex h-full w-6 items-center justify-center bg-hairline/40 transition-colors hover:bg-hairline " +
             (rightVisible
               ? "pointer-events-none opacity-0"
               : "cursor-pointer")

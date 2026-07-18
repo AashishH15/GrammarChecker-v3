@@ -587,30 +587,81 @@
     cursor: col-resize;
   }
 
-  /* Print / "Export as PDF" (window.print): show ONLY the editor content.
-     Elements tagged .lex-no-print are hidden so the output is a clean
-     document, not the app chrome (header, side panels, toolbar). */
-  @media print {
-    .lex-no-print {
-      display: none !important;
-    }
+}
 
-    /* Kill the app shell chrome; let the editor fill the page. */
-    body,
-    .lex-app-shell,
-    main {
-      display: block !important;
-      height: auto !important;
-      overflow: visible !important;
-      background: #fff !important;
-    }
+@page {
+  margin: 0.85in;
+}
 
-    .ProseMirror {
-      border: 0 !important;
-      padding: 0 !important;
-      max-width: 100% !important;
-      font-size: 12pt !important;
-      color: #000 !important;
-    }
+@media print {
+  html,
+  body,
+  .lex-app-shell,
+  main,
+  section,
+  .ProseMirror,
+  .ProseMirror mark,
+  .ProseMirror .highlight,
+  .ProseMirror blockquote {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .lex-no-print {
+    display: none !important;
+  }
+
+  /* Kill the app shell chrome; let the editor fill the page. */
+  html,
+  body,
+  .lex-app-shell,
+  main,
+  section,
+  .ProseMirror {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  /* Hide every scrollbar (incl. the custom .lex-scroll track) so no
+     faint vertical track prints on the right edge. */
+  * {
+    scrollbar-width: none !important;
+  }
+  *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  .lex-scroll {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .ProseMirror mark,
+  .ProseMirror .highlight {
+    background-color: #fce79a !important;
+    color: inherit !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .lex-error {
+    display: none !important;
+  }
+
+  .ProseMirror {
+    border: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    font-size: 12pt !important;
   }
 }
