@@ -10,6 +10,8 @@ export default function ReviewPanel({
   activeErrorId,
   onApply,
   onDismiss,
+  onAcceptAll,
+  onDismissAll,
   onAddToDictionary,
   onLocate,
   onCollapse,
@@ -18,7 +20,7 @@ export default function ReviewPanel({
   const count = grammarMatches.length;
 
   return (
-    <div className="flex h-full flex-col px-4 pb-6 pt-4">
+      <div className="flex h-full flex-col px-4 pb-6 pt-4">
       <div className="flex items-center justify-between gap-3">
         {onCollapse && (
           <button
@@ -31,26 +33,39 @@ export default function ReviewPanel({
             <ArrowLineRight size={14} weight="bold" />
           </button>
         )}
-        <div className="flex items-center gap-3">
-          {activeTool && count > 0 && (
-            <span className="rounded-full bg-pale-green px-2.5 py-px font-mono text-[10px] uppercase tracking-widest text-pale-green-text">
-              {count} {count === 1 ? "Suggestion" : "Suggestions"}
-            </span>
-          )}
-          {activeTool && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted hover:text-ink"
-            >
-              Clear
-            </button>
-          )}
-          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
-            Review Panel
-          </p>
-        </div>
+        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
+          Review
+        </p>
       </div>
+      {activeTool && (
+        <div className="mt-2 flex items-center justify-between gap-3">
+          {count > 0 && (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onAcceptAll}
+                className="rounded-full bg-pale-green px-2.5 py-px font-mono text-[10px] uppercase tracking-widest text-pale-green-text transition-colors hover:bg-pale-green/70"
+              >
+                Accept all {count} {count === 1 ? "Suggestion" : "Suggestions"}
+              </button>
+              <button
+                type="button"
+                onClick={onDismissAll}
+                className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted transition-colors hover:text-ink"
+              >
+                Dismiss All
+              </button>
+              <button
+                type="button"
+                onClick={onClear}
+                className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted transition-colors hover:text-ink"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="lex-scroll mt-4 flex-1 overflow-auto pr-1">
         {!activeTool ? (

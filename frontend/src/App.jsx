@@ -48,7 +48,9 @@ import {
   dismissError,
   focusError,
   findErrorAt,
+  grammarPluginKey,
 } from "./grammarHighlight.js";
+import { DecorationSet } from "@tiptap/pm/view";
 
 // Six-dot grip used for the drag handle
 const DRAG_HANDLE_GRIP_SVG = `
@@ -580,6 +582,60 @@ export default function App() {
     runGrammarCheck(false, next);
   }
 
+  function handleAcceptAll() {
+    if (!editor) {
+      return;
+    }
+    // Apply every replacement in a single transaction, processed right-to-left
+    // (descending document position). Because each edit sits to the right of
+    // all not-yet-applied matches, their original positions stay valid, so a
+    // replacement of one length can't corrupt a later match's range the way
+    // sequential left-to-right edits do.
+    const { map } = buildTextWithMap(editor.state.doc);
+    const edits = grammarMatches
+      .map((match) => {
+        const replacement = match.replacements && match.replacements[0];
+        if (!replacement) {
+          return null;
+        }
+        const from = map[match.offset];
+        const last = map[match.offset + match.length - 1];
+        if (from == null || last == null) {
+          return null;
+        }
+        return { from, to: last + 1, replacement };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.from - a.from);
+
+    let tr = editor.state.tr;
+    edits.forEach(({ from, to, replacement }) => {
+      tr = tr.insertText(replacement, from, to);
+    });
+    tr.setMeta(grammarPluginKey, { decorations: DecorationSet.empty });
+    editor.view.dispatch(tr);
+
+    setGrammarMatches([]);
+    setActiveErrorId(null);
+    activeErrorRef.current = null;
+    setHoveredError(null);
+    runGrammarCheck();
+  }
+
+  // C16.23: dismiss every current suggestion and remember them so a re-run
+  // won't surface them again.
+  function handleDismissAll() {
+    grammarMatches.forEach((match) => rememberDismissed(match));
+    if (editor) {
+      clearGrammarDecorations(editor);
+    }
+    setGrammarMatches([]);
+    setActiveErrorId(null);
+    activeErrorRef.current = null;
+    setHoveredError(null);
+    runGrammarCheck();
+  }
+
   function handleAddWordToDictionary(rawWord) {
     const word = (rawWord || "").trim();
     if (!word) {
@@ -923,7 +979,7 @@ export default function App() {
           <aside className="flex h-full w-64 flex-col">
             <div className="flex items-center justify-between px-4 pt-4">
               <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted">
-                Tools
+                Actions
               </p>
               <button
                 type="button"
@@ -1027,6 +1083,8 @@ export default function App() {
               activeErrorId={activeErrorId}
               onApply={handleApplySuggestion}
               onDismiss={handleDismiss}
+              onAcceptAll={handleAcceptAll}
+              onDismissAll={handleDismissAll}
               onAddToDictionary={handleAddToDictionary}
               onLocate={handleLocate}
               onCollapse={handleCollapseRight}
