@@ -11,9 +11,7 @@
 
 A 20-second tour of what Lexicon is:
 
-
-https://github.com/user-attachments/assets/7b869e0e-49ce-4037-b2d1-99d5eabb849a
-
+<img width="1920" height="1080" alt="Lexicon (1)" src="https://github.com/user-attachments/assets/3986e7b1-e5fa-4b12-b32c-70c64f4746c8" />
 
 A distraction-free rich-text editor, inline grammar squiggles, and
 one-click suggestion cards. All running offline on your own machine.
