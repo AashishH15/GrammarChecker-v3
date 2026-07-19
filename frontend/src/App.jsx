@@ -159,6 +159,7 @@ export default function App() {
   const [selectedText, setSelectedText] = useState("");
   const [activeTool, setActiveTool] = useState("");
   const [grammarMatches, setGrammarMatches] = useState([]);
+  const [userResolvedAll, setUserResolvedAll] = useState(false);
   const [dismissedKeys, setDismissedKeys] = useState(() => new Set());
   const [checking, setChecking] = useState(false);
   const [hoveredError, setHoveredError] = useState(null);
@@ -646,6 +647,7 @@ export default function App() {
     setActiveErrorId(null);
     activeErrorRef.current = null;
     setHoveredError(null);
+    setUserResolvedAll(true);
     runGrammarCheck();
   }
 
@@ -660,6 +662,7 @@ export default function App() {
     setActiveErrorId(null);
     activeErrorRef.current = null;
     setHoveredError(null);
+    setUserResolvedAll(true);
     runGrammarCheck();
   }
 
@@ -929,6 +932,7 @@ export default function App() {
 
   function triggerProofread() {
     setActiveTool("Proofread");
+    setUserResolvedAll(false);
     runGrammarCheck();
   }
 
@@ -1232,6 +1236,7 @@ export default function App() {
               activeTool={activeTool}
               grammarMatches={grammarMatches}
               checking={checking}
+              userResolvedAll={userResolvedAll}
               activeErrorId={activeErrorId}
               aboutToCollapse={aboutToCollapse === "right"}
               onApply={handleApplySuggestion}

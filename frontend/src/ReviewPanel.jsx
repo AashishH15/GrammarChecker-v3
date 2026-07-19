@@ -7,6 +7,7 @@ export default function ReviewPanel({
   activeTool,
   grammarMatches,
   checking,
+  userResolvedAll,
   activeErrorId,
   aboutToCollapse,
   onApply,
@@ -57,7 +58,7 @@ export default function ReviewPanel({
               <button
                 type="button"
                 onClick={onDismissAll}
-                className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted transition-colors hover:text-ink"
+                className="rounded-full px-2.5 py-px font-mono text-[10px] uppercase tracking-widest text-muted transition-colors hover:bg-pale-red hover:text-pale-red-text"
               >
                 Dismiss All
               </button>
@@ -91,7 +92,7 @@ export default function ReviewPanel({
           </p>
         ) : count === 0 ? (
           <p className="font-mono text-xs lowercase tracking-[0.04em] text-muted">
-            status :: no issues found
+            status :: {userResolvedAll ? "no issues remaining" : "no issues found"}
           </p>
         ) : (
           <ul className="flex flex-col gap-3">
