@@ -5,6 +5,14 @@ accounts, no cloud, no usage costs. The UI is a web app inspired by the web
 versions of Grammarly and Quillbot, with the kind of writing tools Apple
 ships in its "Writing Tools" feature.
 
+## Watch: what Lexicon is
+
+[![Lexicon — local-first AI writing assistant](media/Lexicon.jpg)](media/Lexicon.mp4)
+
+A 20-second tour: a distraction-free rich-text editor, inline grammar
+squiggles, and one-click suggestion cards — all running offline on your own
+machine.
+
 ## Why Lexicon
 
 The earlier versions were desktop Tkinter apps with weak engines:
