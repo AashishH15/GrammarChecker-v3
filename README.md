@@ -12,6 +12,9 @@
 A 20-second tour of what Lexicon is:
 
 ![Lexicon](media/Lexicon.gif)
+<p align=center>
+<a href="https://github.com/AashishH15/Lexicon/blob/master/media/Lexicon.mp4">View Video</a>
+</p>
 
 A distraction-free rich-text editor, inline grammar squiggles, and
 one-click suggestion cards. All running offline on your own machine.
