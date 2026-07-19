@@ -2,11 +2,10 @@
 
 ![Lexicon](media/Lexicon.jpg)
 
-# Lexicon
+# Lexicon: Local-First Writing Assistant
 
-**Open Source • Privacy-First**<br>
-**Local-First AI Writing Assistant**<br>
-**Grammar, Rewriting & Tone — Entirely Offline**
+**Open Source • Privacy-First • Offline**<br>
+**Fix Grammar, Rewriting & Tone - Your Words Stay on Your Laptop**
 
 </div>
 
@@ -15,16 +14,21 @@ A 20-second tour of what Lexicon is:
 https://github.com/user-attachments/assets/494357bb-02e4-4f3c-8170-e2183fe1f932
 
 A distraction-free rich-text editor, inline grammar squiggles, and
-one-click suggestion cards — all running offline on your own machine.
+one-click suggestion cards. All running offline on your own machine.
 
 ## Why Lexicon
+
+A local-first AI writing assistant that runs entirely on your machine. No
+accounts, no cloud, no usage costs. Inspired by the web
+versions of Grammarly and Quillbot, with the kind of writing tools Apple
+ships in its "Writing Tools" feature.
 
 The earlier versions were desktop Tkinter apps with weak engines:
 
 - v1 ([GrammarCheck](https://github.com/AashishH15/GrammarCheck)) used LanguageTool for grammar but had no AI rewriting.
 - v2 ([Grammar-Checker-v2](https://github.com/AashishH15/Grammar-Checker-v2)) used TextBlob, which is really just a spellchecker.
 
-Both were dated desktop UIs. Lexicon moves to a browser-based app and pairs a real
+Both were dated desktop UIs. Lexicon moves to a browser/desktop-based app and pairs a real
 grammar engine with a local LLM for rewriting and tone.
 
 ## Layout
