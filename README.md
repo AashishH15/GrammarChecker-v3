@@ -19,6 +19,22 @@ A 20-second tour of what Lexicon is:
 A distraction-free rich-text editor, inline grammar squiggles, and
 one-click suggestion cards. All running offline on your own machine.
 
+<details>
+  <summary><strong>Table of Contents</strong></summary>
+
+- [Why Lexicon](#why-lexicon)
+- [Layout](#layout)
+  - [Writing canvas](#writing-canvas)
+  - [Grammar & review](#grammar--review)
+  - [Import / Export](#import--export)
+  - [Settings & shortcuts](#settings--shortcuts)
+- [Running the backend](#running-the-backend)
+  - [Grammar engine (LanguageTool)](#grammar-engine-languagetool)
+- [Running the frontend](#running-the-frontend)
+- [Acknowledgements](#acknowledgements)
+
+</details>
+
 ## Why Lexicon
 
 A local-first AI writing assistant that runs entirely on your machine. No
