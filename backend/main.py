@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from inference import get_backend
 from languagetool import check_text, warm_up
 
 
@@ -14,6 +15,13 @@ async def lifespan(app: FastAPI):
     # JVM isn't installed) shouldn't crash the server; the first real request
     # will attempt to warm up again.
     warm_up()
+    # Probe for a local inference backend: prefer a detected Ollama
+    # server, else fall back to the bundled backend. Swallowed so a missing
+    # backend never blocks startup; it re-resolves lazily on first use.
+    try:
+        get_backend()
+    except Exception:
+        pass
     yield
 
 
