@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from fastapi.responses import JSONResponse
 
-from inference import get_backend
+from inference import get_backend, InferenceUnavailable, BundledBackend, OllamaBackend
 from languagetool import check_text, warm_up
 from model_manager import download_model, model_state
 
@@ -48,6 +48,13 @@ class ModelDownloadRequest(BaseModel):
     model_key: str = "2b"
 
 
+class TransformRequest(BaseModel):
+    prompt: str
+    text: str
+    model_key: str | None = None
+    backend: str | None = None  # "bundled" | "ollama" | None (auto)
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -76,3 +83,21 @@ def model_download(request: ModelDownloadRequest):
     except RuntimeError as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})
     return status
+
+
+@app.post("/transform")
+def transform(request: TransformRequest):
+    """Generic transform endpoint: prompt in, text out, routed through
+    whichever backend is active (Ollama preferred, else bundled). The request
+    may force a backend or pick a bundled model size."""
+    if request.backend == "bundled":
+        backend = BundledBackend(model_key=request.model_key or "2b")
+    elif request.backend == "ollama":
+        backend = OllamaBackend()
+    else:
+        backend = get_backend()
+    try:
+        result = backend.complete(request.prompt, request.text)
+    except InferenceUnavailable as exc:
+        return JSONResponse(status_code=503, content={"error": str(exc)})
+    return {"text": result}

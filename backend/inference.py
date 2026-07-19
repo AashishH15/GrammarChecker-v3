@@ -5,21 +5,24 @@ it:
 
 - OllamaBackend: talks to a user's already-running Ollama server,
   auto-detected on startup and preferred when present.
-- BundledBackend: a stub around llama.cpp (llama-cpp-python) that will
-  serve one packaged quantized model when no Ollama server is found. The model
-  download/load pipeline lands later, so for now it reports itself
-  unavailable and raises a clear error if called.
+- BundledBackend: runs one packaged quantized GGUF via llama-cpp-python when
+  no Ollama server is found. The model is downloaded by the pipeline and
+  loaded lazily on first use. llama-cpp-python is intentionally NOT a
+  hard dependency yet, so it is imported lazily and guarded here.
 
 Mirrors the "optional remote, local by default" shape of the LanguageTool
 client (languagetool.py): env-overridable server URL, lazy resolution, and a
 failure that never crashes the app.
 
-No HTTP endpoint is exposed here; that arrives with /transform at C20.
+No HTTP endpoint is exposed here; that arrives with /transform.
 """
 
 import os
+import re
 
 import requests
+
+from model_manager import model_path
 
 OLLAMA_SERVER = os.environ.get("OLLAMA_SERVER", "http://localhost:11434")
 # Optional hard override of auto-detection: "ollama" or "bundled".
@@ -31,6 +34,18 @@ FORCE_BACKEND = os.environ.get("LEXICON_INFERENCE", "").strip().lower()
 # stalling startup (and startup swallows failures and re-probes lazily anyway).
 PROBE_TIMEOUT = 2.5
 GENERATE_TIMEOUT = 120
+
+# Qwen3.5 is a reasoning-capable model. For short text transforms, chain-of-
+# thought is pure overhead (~10x slower, no quality gain). We disable
+# thinking on both backends. Ollama honors a `think: false` flag; llama.cpp
+# has no equivalent API in 0.3.x, so we both instruct it off in the prompt and
+# strip any leaked think block as a safety net.
+THINK_TAG_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
+
+
+def strip_think(text: str) -> str:
+    """Remove any leaked reasoning block from a model output."""
+    return THINK_TAG_RE.sub("", text).strip()
 
 
 class InferenceUnavailable(RuntimeError):
@@ -45,8 +60,9 @@ class InferenceBackend:
     def available(self) -> bool:
         raise NotImplementedError
 
-    def complete(self, prompt: str, **opts) -> str:
-        """Run a completion and return the generated text."""
+    def complete(self, prompt: str, text: str, **opts) -> str:
+        """Run a transform: `prompt` is the instruction, `text` the input.
+        Returns the generated text."""
         raise NotImplementedError
 
 
@@ -55,31 +71,67 @@ class OllamaBackend(InferenceBackend):
 
     name = "ollama"
 
-    def __init__(self, base_url: str = OLLAMA_SERVER, model: str = "llama3.2"):
-        self.base_url = base_url.rstrip("/")
-        self.model = model
+    # Embedding-only models can't do chat/transform; skip them when auto-
+    # picking a model from the tags list.
+    _EMBED_ONLY = ("nomic-embed-text", "mxbai-embed-large", "all-minilm")
 
-    def available(self) -> bool:
-        """Probe the server. True only if it responds to the tags endpoint."""
+    def __init__(self, base_url: str = OLLAMA_SERVER, model: str | None = None):
+        self.base_url = base_url.rstrip("/")
+        self._model = model
+
+    def _tags(self) -> list[str]:
         try:
-            response = requests.get(
+            resp = requests.get(
                 f"{self.base_url}/api/tags", timeout=PROBE_TIMEOUT
             )
-            return response.ok
+            resp.raise_for_status()
+            return [m["name"] for m in resp.json().get("models", [])]
         except requests.RequestException:
-            return False
+            return []
 
-    def complete(self, prompt: str, **opts) -> str:
-        model = opts.pop("model", self.model)
+    def _chat_models(self) -> list[str]:
+        return [
+            m for m in self._tags()
+            if not any(e in m for e in self._EMBED_ONLY)
+        ]
+
+    def available(self) -> bool:
+        """True only if Ollama is up AND has a chat-capable model to use.
+
+        A server can answer /api/tags yet have no usable model (e.g. only an
+        embedder pulled), in which case transforms would 404 — so we require a
+        real chat model before claiming availability.
+        """
+        return bool(self._chat_models())
+
+    def _resolve_model(self) -> str:
+        if self._model:
+            return self._model
+        models = self._chat_models()
+        if not models:
+            raise InferenceUnavailable(
+                f"Ollama at {self.base_url} has no chat-capable model pulled."
+            )
+        # Prefer a qwen model (matches our bundled default) else the first.
+        for m in models:
+            if "qwen" in m.lower():
+                return m
+        return models[0]
+
+    def complete(self, prompt: str, text: str, **opts) -> str:
+        model = opts.pop("model", None) or self._resolve_model()
+        # Disable thinking for transform workloads.
+        payload = {
+            "model": model,
+            "prompt": f"{prompt}\n\n{text}",
+            "stream": False,
+            "think": False,
+            **opts,
+        }
         try:
             response = requests.post(
                 f"{self.base_url}/api/generate",
-                json={
-                    "model": model,
-                    "prompt": prompt,
-                    "stream": False,
-                    **opts,
-                },
+                json=payload,
                 timeout=GENERATE_TIMEOUT,
             )
             response.raise_for_status()
@@ -87,29 +139,78 @@ class OllamaBackend(InferenceBackend):
             raise InferenceUnavailable(
                 f"Ollama request to {self.base_url} failed: {exc}"
             ) from exc
-        return response.json().get("response", "")
+        return strip_think(response.json().get("response", ""))
 
 
 class BundledBackend(InferenceBackend):
-    """Bundled llama.cpp model.
+    """Bundled llama.cpp model loaded from the downloaded GGUF.
 
-    llama-cpp-python is a heavy native build and there's no packaged model yet,
-    so it is intentionally NOT in requirements.txt. It is imported lazily and
-    guarded here; until the model download/load pipeline lands this
-    backend reports itself unavailable and calling it raises a clear error.
+    llama-cpp-python is a heavy native build and is not a hard dependency, so
+    it is imported lazily and guarded. The session is created on the first
+    complete() call (lazy load) rather than at import/startup, so we
+    never pay the multi-GB load cost unless AI is actually used.
     """
 
     name = "bundled"
 
-    def available(self) -> bool:
-        # No packaged model / loader wired up yet.
-        return False
+    def __init__(self, model_key: str = "2b", n_ctx: int = 4096):
+        self.model_key = model_key
+        self.n_ctx = n_ctx
+        self._llm = None
 
-    def complete(self, prompt: str, **opts) -> str:
-        raise InferenceUnavailable(
-            "The bundled local model isn't set up yet. Model download and "
-            "loading arrive in a later step."
+    def _path(self) -> str:
+        return model_path(self.model_key)
+
+    def available(self) -> bool:
+        # Available iff the downloaded GGUF for this key exists on disk.
+        return os.path.exists(self._path())
+
+    def _ensure_loaded(self):
+        if self._llm is not None:
+            return
+        try:
+            from llama_cpp import Llama
+        except ImportError as exc:
+            raise InferenceUnavailable(
+                "The bundled model engine (llama-cpp-python) isn't installed. "
+                "Install it or use a running Ollama server."
+            ) from exc
+        if not self.available():
+            raise InferenceUnavailable(
+                "The bundled model isn't downloaded yet. Run the model "
+                "download before using the local backend."
+            )
+        self._llm = Llama(
+            model_path=self._path(),
+            n_ctx=self.n_ctx,
+            verbose=False,
         )
+
+    def complete(self, prompt: str, text: str, **opts) -> str:
+        self._ensure_loaded()
+        max_tokens = int(opts.pop("max_tokens", 512))
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a writing assistant. Follow the user's "
+                    "instruction and rewrite only what is asked. Do not "
+                    "explain. Do not think aloud."
+                ),
+            },
+            {"role": "user", "content": f"{prompt}\n\n{text}"},
+        ]
+        try:
+            out = self._llm.create_chat_completion(
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.3,
+                **opts,
+            )
+        except Exception as exc:  # noqa: BLE001 - surface engine errors clearly
+            raise InferenceUnavailable(f"Bundled model failed: {exc}") from exc
+        content = out["choices"][0]["message"]["content"]
+        return strip_think(content)
 
 
 _backend = None
