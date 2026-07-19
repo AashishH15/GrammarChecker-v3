@@ -29,6 +29,7 @@ import ReviewPanel from "./ReviewPanel.jsx";
 import GrammarTooltip from "./GrammarTooltip.jsx";
 import Settings, { SETTINGS_DEFAULTS } from "./Settings.jsx";
 import DictionaryPanel from "./DictionaryPanel.jsx";
+import ComingSoonNotice from "./ComingSoonNotice.jsx";
 import {
   Gear,
   BookBookmark,
@@ -172,6 +173,7 @@ export default function App() {
   const [editorFocused, setEditorFocused] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dictionaryOpen, setDictionaryOpen] = useState(false);
+  const [aiNotice, setAiNotice] = useState("");
   const [leftPanelOpen, setLeftPanelOpen] = useState(() =>
     loadPanelOpen(leftPanelKey),
   );
@@ -919,7 +921,10 @@ export default function App() {
         activeErrorRef.current = null;
         clearGrammarDecorations(editor);
       }
+      return;
     }
+    setActiveTool("");
+    setAiNotice(name);
   }
 
   function triggerProofread() {
@@ -1305,6 +1310,7 @@ export default function App() {
         onRemoveWord={handleRemoveFromDictionary}
         onClose={() => setDictionaryOpen(false)}
       />
+      <ComingSoonNotice tool={aiNotice} onDismiss={() => setAiNotice("")} />
     </div>
   );
 }
