@@ -30,6 +30,8 @@ import GrammarTooltip from "./GrammarTooltip.jsx";
 import Settings, { SETTINGS_DEFAULTS } from "./Settings.jsx";
 import DictionaryPanel from "./DictionaryPanel.jsx";
 import AiSetupModal from "./AiSetupModal.jsx";
+import useTransform from "./useTransform.js";
+import { isAiTool, promptForTool } from "./prompts.js";
 import {
   Gear,
   BookBookmark,
@@ -179,6 +181,10 @@ export default function App() {
     // First-run AI setup flow: shown once, gated by a localStorage flag.
     return localStorage.getItem("lexicon:aiSetupDone") !== "true";
   });
+
+  const { status: transformStatus, error: transformError, run: runTransform, isWarming } =
+    useTransform();
+  const [transformResult, setTransformResult] = useState(null); // { tool, text, from, to }
 
   const refreshAiConfigured = useCallback(async () => {
     try {
@@ -951,10 +957,70 @@ export default function App() {
       }
       return;
     }
-    setActiveTool("");
+    if (!isAiTool(name)) {
+      return;
+    }
     if (!aiConfigured) {
       setAiSetupOpen(true);
+      return;
     }
+    // Clicking the already-active tool again clears its result (toggle off).
+    if (nextTool === "") {
+      setTransformResult(null);
+      return;
+    }
+    runAiTool(name);
+  }
+
+  async function runAiTool(name) {
+    if (!editor) {
+      return;
+    }
+    const { from, to } = editor.state.selection;
+    const hasSelection = from !== to;
+    const sourceText = hasSelection
+      ? editor.state.doc.textBetween(from, to, " ")
+      : editor.getText();
+    if (!sourceText.trim()) {
+      return;
+    }
+    const prompt = promptForTool(name);
+    if (!prompt) {
+      return;
+    }
+    const result = await runTransform({
+      prompt,
+      text: sourceText,
+    });
+    if (result == null) {
+      // Aborted or errored — useTransform already holds the error state.
+      return;
+    }
+    setTransformResult({
+      tool: name,
+      text: result,
+      from: hasSelection ? from : 0,
+      to: hasSelection ? to : editor.state.doc.content.size,
+    });
+  }
+
+  function applyTransformResult() {
+    if (!editor || !transformResult) {
+      return;
+    }
+    const { from, to, text } = transformResult;
+    editor
+      .chain()
+      .focus()
+      .insertContentAt({ from, to }, text)
+      .run();
+    setTransformResult(null);
+    setActiveTool("");
+  }
+
+  function dismissTransformResult() {
+    setTransformResult(null);
+    setActiveTool("");
   }
 
   function triggerProofread() {
@@ -1161,6 +1227,8 @@ export default function App() {
                 aiConfigured={aiConfigured}
                 panelWidth={leftWidth}
                 isMac={isMac}
+                isWarming={isWarming}
+                transformStatus={transformStatus}
               />
               {!aiConfigured && (
                 <div className="mt-2 rounded-lg border border-dashed border-hairline bg-canvas px-3 py-2.5">
@@ -1297,10 +1365,16 @@ export default function App() {
                 setActiveErrorId(null);
                 activeErrorRef.current = null;
                 setHoveredError(null);
+                setTransformResult(null);
                 if (editor) {
                   clearGrammarDecorations(editor);
                 }
               }}
+              transformResult={transformResult}
+              transformStatus={transformStatus}
+              transformError={transformError}
+              onApplyTransform={applyTransformResult}
+              onDismissTransform={dismissTransformResult}
             />
           </aside>
         </div>

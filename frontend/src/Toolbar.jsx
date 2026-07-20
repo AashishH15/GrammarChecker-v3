@@ -16,6 +16,7 @@ import {
   Megaphone,
   Smiley,
   LockSimple,
+  CircleNotch,
 } from "@phosphor-icons/react";
 
 const groups = [
@@ -52,15 +53,13 @@ const groups = [
   },
 ];
 
-export default function Toolbar({ editor, activeTool, onToolClick, onAiSetup, aiConfigured, panelWidth, isMac }) {
+export default function Toolbar({ editor, activeTool, onToolClick, onAiSetup, aiConfigured, panelWidth, isMac, isWarming, transformStatus }) {
   // Below this panel width the Proofread shortcut hint can't fit alongside
   // the label, so we drop it to keep the row from wrapping/cramping.
   const showProofreadHint = (panelWidth ?? 256) >= 220;
   const proofreadHint = isMac ? "⌘ + ↵" : "Ctrl + ↵";
-  // C21: every AI tool (all groups except Analysis/Proofread) is locked until
-  // a backend is configured. The button greys out, shows a lock, and opens
-  // setup instead of running.
   const aiLocked = !aiConfigured;
+  const warmingTool = isWarming && activeTool && activeTool !== "Proofread";
   return (
     <nav className="flex flex-col gap-6">
       {groups.map((group) => (
@@ -72,13 +71,15 @@ export default function Toolbar({ editor, activeTool, onToolClick, onAiSetup, ai
             {group.tools.map(({ name, icon: Icon }) => {
               const isProofread = name === "Proofread";
               const locked = aiLocked && !isProofread;
+              const isWarmingThis = warmingTool === name;
               return (
                 <li key={name}>
                   <button
                     type="button"
-                    disabled={locked}
+                    disabled={locked || isWarmingThis}
                     onClick={() => (locked ? onAiSetup() : onToolClick(name))}
                     aria-pressed={activeTool === name}
+                    aria-busy={isWarmingThis}
                     title={locked ? "Set up Lexicon AI to use this tool" : undefined}
                     className={
                       "group flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left text-sm transition-colors " +
@@ -94,7 +95,7 @@ export default function Toolbar({ editor, activeTool, onToolClick, onAiSetup, ai
                       weight="bold"
                       className={
                         "transition-transform duration-200 " +
-                        (locked ? "" : "group-hover:scale-125")
+                        (locked || isWarmingThis ? "" : "group-hover:scale-125")
                       }
                     />
                     <span className={locked ? "" : "transition-transform duration-200 group-hover:scale-105"}>
@@ -102,6 +103,9 @@ export default function Toolbar({ editor, activeTool, onToolClick, onAiSetup, ai
                     </span>
                     {locked && (
                       <LockSimple size={13} weight="bold" className="ml-auto opacity-70" />
+                    )}
+                    {isWarmingThis && (
+                      <CircleNotch size={14} weight="bold" className="ml-auto animate-spin" />
                     )}
                     {isProofread && showProofreadHint && (
                       <kbd className="ml-auto rounded border border-current/30 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider opacity-60">
