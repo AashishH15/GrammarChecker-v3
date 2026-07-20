@@ -30,6 +30,7 @@ import GrammarTooltip from "./GrammarTooltip.jsx";
 import Settings, { SETTINGS_DEFAULTS } from "./Settings.jsx";
 import DictionaryPanel from "./DictionaryPanel.jsx";
 import ComingSoonNotice from "./ComingSoonNotice.jsx";
+import AiSetupModal from "./AiSetupModal.jsx";
 import {
   Gear,
   BookBookmark,
@@ -175,6 +176,10 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dictionaryOpen, setDictionaryOpen] = useState(false);
   const [aiNotice, setAiNotice] = useState("");
+  const [aiSetupOpen, setAiSetupOpen] = useState(() => {
+    // First-run AI setup flow: shown once, gated by a localStorage flag.
+    return localStorage.getItem("lexicon:aiSetupDone") !== "true";
+  });
   const [leftPanelOpen, setLeftPanelOpen] = useState(() =>
     loadPanelOpen(leftPanelKey),
   );
@@ -1316,6 +1321,9 @@ export default function App() {
         onClose={() => setDictionaryOpen(false)}
       />
       <ComingSoonNotice tool={aiNotice} onDismiss={() => setAiNotice("")} />
+      {aiSetupOpen && (
+        <AiSetupModal onClose={() => setAiSetupOpen(false)} />
+      )}
     </div>
   );
 }

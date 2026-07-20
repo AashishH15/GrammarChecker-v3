@@ -169,7 +169,11 @@ def _stream_download(model_key: str) -> str:
 
     with requests.get(url, headers=headers, stream=True, timeout=30) as resp:
         resp.raise_for_status()
-        total = int(resp.headers.get("Content-Length", 0)) + resume_pos
+        # Prefer the known expected size (authoritative) over the HTTP
+        # Content-Length, which HF's CDN often omits — without it the progress
+        # bar has no denominator. Add the resume offset so the bar starts where
+        # a partial download left off.
+        total = spec["size"] + resume_pos
         _update_progress(model_key, resume_pos, total)
         with open(dest, mode) as fh:
             for chunk in resp.iter_content(chunk_size=1 << 20):  # 1 MiB

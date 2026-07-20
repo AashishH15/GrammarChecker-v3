@@ -72,6 +72,21 @@ def model_status():
     return model_state()
 
 
+@app.get("/ai/status")
+def ai_status():
+    """Single probe the frontend calls on load: which backend is active, is
+    Ollama reachable, and is the bundled model ready. Drives the first-run
+    setup flow and the settings surface."""
+    ollama = OllamaBackend()
+    bundled = BundledBackend()
+    active = get_backend()
+    return {
+        "ollama_available": ollama.available(),
+        "model_ready": bundled.available(),
+        "active_backend": active.name,
+    }
+
+
 @app.post("/model/download")
 def model_download(request: ModelDownloadRequest):
     """Trigger a bundled-model download. Runs synchronously; the frontend will

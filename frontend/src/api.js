@@ -18,3 +18,35 @@ export async function checkGrammar(
   const data = await response.json();
   return data.matches;
 }
+
+// Probe which AI backend is active and what's available.
+export async function getAiStatus() {
+  const response = await fetch(`${API_URL}/ai/status`);
+  if (!response.ok) {
+    throw new Error(`AI status failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+// Trigger the bundled-model download (runs synchronously server-side).
+export async function downloadModel(modelKey = "2b") {
+  const response = await fetch(`${API_URL}/model/download`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model_key: modelKey }),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `Model download failed: ${response.status}`);
+  }
+  return response.json();
+}
+
+// Poll download progress.
+export async function getModelStatus() {
+  const response = await fetch(`${API_URL}/model/status`);
+  if (!response.ok) {
+    throw new Error(`Model status failed: ${response.status}`);
+  }
+  return response.json();
+}
