@@ -53,8 +53,12 @@ jobs:
             platform: windows
             target: aarch64-pc-windows-msvc
             python_arch: arm64
+            # No prebuilt llama-cpp-python wheel for win_arm64, and llama.cpp
+            # refuses to compile with MSVC on ARM ("use clang"). Like the x86
+            # legacy job, omit the native engine here; proofreading still works
+            # fully offline. Revisit if official win_arm64 wheels appear.
             cmake_args: "-DCMAKE_GENERATOR_PLATFORM=ARM64 -DGGML_NATIVE=OFF"
-            include_llama: "true"
+            include_llama: "false"
             jre_url: https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_aarch64_windows_hotspot_21.0.5_11.zip
             jre_archive: jre.zip
             bundle: nsis
@@ -179,7 +183,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: frontend/target/${{ matrix.target }}/release/bundle/${{ matrix.bundle }}/*.${{ matrix.extension }}
+          # With projectPath: frontend, the crate manifest is at
+          # frontend/src-tauri/Cargo.toml, so bundles land under
+          # frontend/src-tauri/target/<triple>/release/bundle/... (not
+          # frontend/target/...). A find tolerates either layout and any
+          # version-suffixed filename.
+          path: frontend/src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundle }}/*.${{ matrix.extension }}
           if-no-files-found: error
 
   release:
@@ -205,7 +214,8 @@ jobs:
 
             ### Downloads
             - **Windows x64**: 64-bit Intel/AMD Windows
-            - **Windows ARM64**: Windows on ARM
+            - **Windows ARM64**: Windows on ARM; proofreading is supported,
+              but the optional native AI engine is not bundled
             - **Windows x86**: legacy 32-bit Windows; proofreading is supported,
               but the optional native AI engine is not bundled
             - **macOS Intel**: Intel Macs

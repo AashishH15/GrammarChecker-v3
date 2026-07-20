@@ -219,7 +219,7 @@ class BundledBackend(InferenceBackend):
                 temperature=0.3,
                 **opts,
             )
-        except Exception as exc:  # noqa: BLE001 - surface engine errors clearly
+        except Exception:  # noqa: BLE001 - surface engine errors clearly
             # A decode can wedge the session if the client aborts mid-generation
             # (e.g. cancelling a run). Rebuild the session once and retry so the
             # next request self-heals instead of persisting a -1 failure.
