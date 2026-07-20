@@ -17,6 +17,7 @@ import {
   Smiley,
   LockSimple,
   CircleNotch,
+  X,
 } from "@phosphor-icons/react";
 
 const groups = [
@@ -53,13 +54,14 @@ const groups = [
   },
 ];
 
-export default function Toolbar({ editor, activeTool, onToolClick, onAiSetup, aiConfigured, panelWidth, isMac, isWarming, transformStatus }) {
+export default function Toolbar({ editor, activeTool, onToolClick, onAiSetup, aiConfigured, panelWidth, isMac, isWarming, transformStatus, transformRunning }) {
   // Below this panel width the Proofread shortcut hint can't fit alongside
   // the label, so we drop it to keep the row from wrapping/cramping.
   const showProofreadHint = (panelWidth ?? 256) >= 220;
   const proofreadHint = isMac ? "⌘ + ↵" : "Ctrl + ↵";
   const aiLocked = !aiConfigured;
   const warmingTool = isWarming && activeTool && activeTool !== "Proofread";
+  const runningTool = transformRunning && activeTool && activeTool !== "Proofread";
   return (
     <nav className="flex flex-col gap-6">
       {groups.map((group) => (
@@ -72,15 +74,16 @@ export default function Toolbar({ editor, activeTool, onToolClick, onAiSetup, ai
               const isProofread = name === "Proofread";
               const locked = aiLocked && !isProofread;
               const isWarmingThis = warmingTool === name;
+              const isRunningThis = runningTool === name;
               return (
                 <li key={name}>
                   <button
                     type="button"
-                    disabled={locked || isWarmingThis}
+                    disabled={locked || (isWarmingThis && !isRunningThis)}
                     onClick={() => (locked ? onAiSetup() : onToolClick(name))}
                     aria-pressed={activeTool === name}
-                    aria-busy={isWarmingThis}
-                    title={locked ? "Set up Lexicon AI to use this tool" : undefined}
+                    aria-busy={isWarmingThis || isRunningThis}
+                    title={locked ? "Set up Lexicon AI to use this tool" : isRunningThis ? "Click to cancel" : undefined}
                     className={
                       "group flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left text-sm transition-colors " +
                       (locked
@@ -106,6 +109,9 @@ export default function Toolbar({ editor, activeTool, onToolClick, onAiSetup, ai
                     )}
                     {isWarmingThis && (
                       <CircleNotch size={14} weight="bold" className="ml-auto animate-spin" />
+                    )}
+                    {isRunningThis && (
+                      <X size={14} weight="bold" className="ml-auto opacity-80" />
                     )}
                     {isProofread && showProofreadHint && (
                       <kbd className="ml-auto rounded border border-current/30 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider opacity-60">

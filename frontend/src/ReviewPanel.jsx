@@ -1,6 +1,6 @@
 import SuggestionCard from "./SuggestionCard.jsx";
 import DocStats from "./DocStats.jsx";
-import { ArrowLineRight, CircleNotch, Warning } from "@phosphor-icons/react";
+import { ArrowLineRight, CircleNotch, Warning, Lightbulb } from "@phosphor-icons/react";
 
 export default function ReviewPanel({
   editor,
@@ -18,7 +18,9 @@ export default function ReviewPanel({
   onLocate,
   onCollapse,
   onClear,
-  transformResult,
+  transformResults,
+  transformProgress,
+  transformRunning,
   transformStatus,
   transformError,
   onApplyTransform,
@@ -115,7 +117,9 @@ export default function ReviewPanel({
             tool={activeTool}
             status={transformStatus}
             error={transformError}
-            result={transformResult}
+            results={transformResults}
+            progress={transformProgress}
+            running={transformRunning}
             onApply={onApplyTransform}
             onDismiss={onDismissTransform}
           />
@@ -127,69 +131,85 @@ export default function ReviewPanel({
   );
 }
 
-function TransformView({ tool, status, error, result, onApply, onDismiss }) {
-  if (status === "warming" || status === "working") {
+function TransformView({ tool, status, error, results, progress, running, onApply, onDismiss }) {
+  if (running && progress) {
+    const showBar = progress.total > 1; // a single chunk needs no progress bar
+    const pct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
     return (
-      <div className="flex items-start gap-2.5 rounded-lg border border-hairline bg-canvas px-4 py-3">
-        <CircleNotch size={16} weight="bold" className="mt-0.5 animate-spin text-muted" />
-        <div>
-          <p className="font-sans text-sm text-ink">
-            {status === "warming" ? "Warming up the local model…" : "Working…"}
-          </p>
-          <p className="font-mono text-xs lowercase tracking-[0.04em] text-muted mt-1">
-            status :: {status === "warming" ? "loading engine" : "generating"}
-            <span className="lex-ellipsis">...</span>
+      <>
+        {results && results.length > 0 && (
+          <ul className="flex flex-col gap-3">
+            {results.map((card, i) => (
+              <TransformCard key={`${card.part}-${i}`} card={card} index={i} onApply={onApply} onDismiss={onDismiss} />
+            ))}
+          </ul>
+        )}
+        <div className="mt-3 rounded-xl border border-hairline bg-white p-6 pb-4 lex-card-enter">
+          <div className="flex items-start gap-2.5">
+            <CircleNotch size={16} weight="bold" className="mt-0.5 animate-spin text-muted" />
+            <div>
+              <p className="font-sans text-sm text-ink">
+                {status === "warming" ? "Warming up the local model…" : "Working…"}
+              </p>
+              <p className="font-mono text-xs lowercase tracking-[0.04em] text-muted mt-1">
+                status :: transforming part {progress.current} of {progress.total}
+                <span className="lex-ellipsis">...</span>
+              </p>
+            </div>
+          </div>
+          {showBar && (
+            <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-[#EAEAEA]">
+              <div
+                className="h-full bg-ink transition-all duration-300 ease-out"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          )}
+          {progress.total > 1 && (
+            <p className="mt-3 font-sans text-xs leading-relaxed text-muted">
+              This is a large section — generating it in {progress.total} parts may take a minute or two.
+            </p>
+          )}
+          <p className="mt-3 font-mono text-[10px] lowercase tracking-[0.04em] text-muted">
+            status :: click the tool again in Actions to cancel
           </p>
         </div>
-      </div>
+      </>
     );
   }
 
   if (status === "error") {
     return (
-      <div className="flex items-start gap-2.5 rounded-lg border border-pale-red bg-pale-red/40 px-4 py-3">
-        <Warning size={16} weight="bold" className="mt-0.5 text-pale-red-text" />
-        <div>
-          <p className="font-sans text-sm font-medium text-pale-red-text">
-            {tool} couldn&rsquo;t run
-          </p>
-          <p className="font-sans text-xs leading-relaxed text-muted mt-1">
-            {error || "The local model returned an error. Try again, or check your AI setup."}
+      <div className="rounded-xl border border-pale-red bg-pale-red/40 px-4 py-4 lex-card-enter">
+        <div className="flex items-start gap-2.5">
+          <Warning size={16} weight="bold" className="mt-0.5 text-pale-red-text" />
+          <div>
+            <p className="font-sans text-sm font-medium text-pale-red-text">
+              {tool} couldn&rsquo;t run
+            </p>
+            <p className="font-sans text-xs leading-relaxed text-muted mt-1">
+              {error || "The local model returned an error. Try again, or check your AI setup."}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-hairline bg-canvas px-3 py-2.5">
+          <Lightbulb size={14} weight="bold" className="mt-0.5 shrink-0 text-pale-yellow-text" />
+          <p className="font-sans text-xs leading-relaxed text-muted">
+            Tip: very large or unbroken blocks of text can exceed the model&rsquo;s context window. Try selecting a section to transform, or add paragraph breaks so Lexicon can process it in parts.
           </p>
         </div>
       </div>
     );
   }
 
-  if (result) {
+  // One card per chunk (or a single entry for selection/small-doc runs).
+  if (results && results.length > 0) {
     return (
-      <div className="rounded-xl border border-hairline bg-white p-6 pb-4 lex-card-enter">
-        <span className="inline-block rounded bg-pale-blue px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-pale-blue-text">
-          {result.tool} Result
-        </span>
-        <div className="mt-3 whitespace-pre-wrap font-sans text-sm leading-loose text-ink">
-          {result.text}
-        </div>
-        <div className="mt-4 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onApply}
-            className="flex-1 rounded bg-ink py-2 font-sans text-sm font-medium text-white transition-transform duration-150 active:scale-[0.98]"
-          >
-            Apply
-          </button>
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="flex-1 rounded border border-hairline bg-transparent py-2 font-sans text-sm font-medium text-ink transition-transform duration-150 active:scale-[0.98]"
-          >
-            Dismiss
-          </button>
-        </div>
-        <p className="mt-3 font-mono text-[10px] lowercase tracking-[0.04em] text-muted">
-          status :: review the suggestion, then apply to replace the source text
-        </p>
-      </div>
+      <ul className="flex flex-col gap-3">
+        {results.map((card, i) => (
+          <TransformCard key={`${card.part}-${i}`} card={card} index={i} onApply={onApply} onDismiss={onDismiss} />
+        ))}
+      </ul>
     );
   }
 
@@ -198,5 +218,41 @@ function TransformView({ tool, status, error, result, onApply, onDismiss }) {
     <p className="font-mono text-xs lowercase tracking-[0.04em] text-muted">
       status :: awaiting transform<span className="lex-ellipsis">...</span>
     </p>
+  );
+}
+
+function TransformCard({ card, index, onApply, onDismiss }) {
+  return (
+    <li
+      className="rounded-xl border border-hairline bg-white p-6 pb-4 lex-card-enter"
+      style={{ animationDelay: `${index * 80}ms` }}
+    >
+      <span className="inline-block rounded bg-pale-blue px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-pale-blue-text">
+        {card.tool}
+        {card.total > 1 ? ` — Part ${card.part} of ${card.total}` : " Result"}
+      </span>
+      <div className="mt-3 whitespace-pre-wrap font-sans text-sm leading-loose text-ink">
+        {card.text}
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => onApply(card)}
+          className="flex-1 rounded bg-ink py-2 font-sans text-sm font-medium text-white transition-transform duration-150 active:scale-[0.98]"
+        >
+          Apply
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="flex-1 rounded border border-hairline bg-transparent py-2 font-sans text-sm font-medium text-ink transition-transform duration-150 active:scale-[0.98]"
+        >
+          Dismiss
+        </button>
+      </div>
+      <p className="mt-3 font-mono text-[10px] lowercase tracking-[0.04em] text-muted">
+        status :: review the suggestion, then apply to replace this section
+      </p>
+    </li>
   );
 }

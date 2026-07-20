@@ -37,13 +37,12 @@ PROBE_TIMEOUT = 2.5
 GENERATE_TIMEOUT = 120
 
 # Max tokens the model may generate for a single transform. The previous 512
-# cap truncated real writing output (e.g. a 700-word rewrite died mid-sentence,
-# and Markdown tables/list often arrived incomplete and failed to render). Both
-# the 2b and 0.8b GGUFs advertise a 262,144-token context window, so 512 was
-# far below what the models can produce. Long user documents (multi-thousand-word
-# papers) need several thousand output tokens, so we cap at 7000 — well within
-# n_ctx (8192) alongside the prompt. Overridable per-call via opts["max_tokens"].
-TRANSFORM_MAX_TOKENS = 7000
+# Cap on generated tokens per transform. n_ctx is 8192, so input + max_tokens
+# must stay under it. The frontend chunks input to ~3500 tokens, leaving headroom
+# for ~4096 output. 7000 would overflow (3500 + 7000 > 8192); 4096 is the safe
+# per-call ceiling that still covers long rewrites/summaries. Overridable per-call
+# via opts["max_tokens"].
+TRANSFORM_MAX_TOKENS = 4096
 
 # Qwen3.5 is a reasoning-capable model. For short text transforms, chain-of-
 # thought is pure overhead (~10x slower, no quality gain). We disable
@@ -221,7 +220,20 @@ class BundledBackend(InferenceBackend):
                 **opts,
             )
         except Exception as exc:  # noqa: BLE001 - surface engine errors clearly
-            raise InferenceUnavailable(f"Bundled model failed: {exc}") from exc
+            # A decode can wedge the session if the client aborts mid-generation
+            # (e.g. cancelling a run). Rebuild the session once and retry so the
+            # next request self-heals instead of persisting a -1 failure.
+            self._llm = None
+            try:
+                self._ensure_loaded()
+                out = self._llm.create_chat_completion(
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=0.3,
+                    **opts,
+                )
+            except Exception as exc2:
+                raise InferenceUnavailable(f"Bundled model failed: {exc2}") from exc2
         content = out["choices"][0]["message"]["content"]
         return strip_think(content)
 

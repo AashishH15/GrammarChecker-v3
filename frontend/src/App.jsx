@@ -42,6 +42,7 @@ import {
   ArrowLineRight,
   ArrowSquareLeft,
   ArrowSquareRight,
+  CircleNotch,
 } from "@phosphor-icons/react";
 import { checkGrammar, getAiStatus } from "./api.js";
 import {
@@ -183,9 +184,18 @@ export default function App() {
     return localStorage.getItem("lexicon:aiSetupDone") !== "true";
   });
 
-  const { status: transformStatus, error: transformError, run: runTransform, isWarming } =
+  const { status: transformStatus, error: transformError, run: runTransform, abort: abortTransform, isWarming } =
     useTransform();
-  const [transformResult, setTransformResult] = useState(null); // { tool, text, from, to }
+  const [transformResults, setTransformResults] = useState([]); // [{ tool, text, from, to, part, total }]
+  const [transformProgress, setTransformProgress] = useState(null); // { current, total } | null
+  const [transformRunning, setTransformRunning] = useState(false);
+  const transformRunningRef = useRef(false);
+  const cancelTransformRef = useRef(false);
+  const runIdRef = useRef(0);
+  // Budgets must fit n_ctx (8192): input + max_tokens (4096) + overhead.
+  // Keep input per chunk <= 3500 tokens so 3500 + 4096 ~= 7600 < 8192.
+  const TRANSFORM_INPUT_BUDGET = 3500;
+  const TRANSFORM_CHUNK_BUDGET = 3500;
 
   const refreshAiConfigured = useCallback(async () => {
     try {
@@ -965,12 +975,82 @@ export default function App() {
       setAiSetupOpen(true);
       return;
     }
-    // Clicking the already-active tool again clears its result (toggle off).
+    // Clicking the already-active AI tool again cancels an in-progress run
     if (nextTool === "") {
-      setTransformResult(null);
+      if (transformRunningRef.current) {
+        cancelTransform();
+      } else {
+        setTransformResults([]);
+        setTransformProgress(null);
+      }
       return;
     }
     runAiTool(name);
+  }
+
+  function windowBlock(block) {
+    // A block larger than the budget (e.g. a wall-of-text paragraph) can't be
+    // split by paragraph, so cut it into fixed character windows within its
+    // real range. Ranges stay valid for Apply.
+    const maxChars = TRANSFORM_CHUNK_BUDGET * 4;
+    const out = [];
+    for (let start = 0; start < block.text.length; start += maxChars) {
+      const end = Math.min(start + maxChars, block.text.length);
+      out.push({
+        from: block.from + start,
+        to: block.from + end,
+        text: block.text.slice(start, end),
+        tokens: Math.ceil((end - start) / 4),
+      });
+    }
+    return out;
+  }
+
+  function buildChunks() {
+    const blocks = [];
+    editor.state.doc.forEach((node, pos) => {
+      const text = node.textContent;
+      if (!text.trim()) {
+        return;
+      }
+      blocks.push({ from: pos, to: pos + node.nodeSize, text });
+    });
+    const estimate = (t) => Math.ceil(t.length / 4);
+    const chunks = [];
+    let current = null;
+    const pushCurrent = () => {
+      if (!current) {
+        return;
+      }
+      // Window any oversized chunk (covers a lone large block too — the
+      // single-block case the naive loop missed).
+      if (current.tokens > TRANSFORM_CHUNK_BUDGET) {
+        chunks.push(...windowBlock(current));
+      } else {
+        chunks.push(current);
+      }
+      current = null;
+    };
+    for (const block of blocks) {
+      const tokens = estimate(block.text);
+      if (current && current.tokens + tokens > TRANSFORM_CHUNK_BUDGET) {
+        pushCurrent();
+      }
+      if (!current) {
+        if (tokens > TRANSFORM_CHUNK_BUDGET) {
+          // Oversized on its own — window it directly instead of buffering.
+          chunks.push(...windowBlock(block));
+          continue;
+        }
+        current = { from: block.from, to: block.to, text: block.text, tokens };
+        continue;
+      }
+      current.to = block.to;
+      current.text += "\n\n" + block.text;
+      current.tokens += tokens;
+    }
+    pushCurrent();
+    return chunks;
   }
 
   async function runAiTool(name) {
@@ -979,30 +1059,98 @@ export default function App() {
     }
     const { from, to } = editor.state.selection;
     const hasSelection = from !== to;
-    const sourceText = hasSelection
-      ? editor.state.doc.textBetween(from, to, " ")
-      : editor.getText();
-    if (!sourceText.trim()) {
-      return;
-    }
     const prompt = promptForTool(name);
     if (!prompt) {
       return;
     }
-    const result = await runTransform({
-      prompt,
-      text: sourceText,
-    });
-    if (result == null) {
-      // Aborted or errored — useTransform already holds the error state.
+    // Selection-scoped: single transform over the selection (bounded).
+    if (hasSelection) {
+      const sourceText = editor.state.doc.textBetween(from, to, " ");
+      if (!sourceText.trim()) {
+        return;
+      }
+      const result = await runTransform({ prompt, text: sourceText });
+      if (result == null) {
+        return;
+      }
+      setTransformResults([
+        { tool: name, text: result, from, to, part: 1, total: 1 },
+      ]);
       return;
     }
-    setTransformResult({
-      tool: name,
-      text: result,
-      from: hasSelection ? from : 0,
-      to: hasSelection ? to : editor.state.doc.content.size,
-    });
+    // Whole-doc: chunk if it exceeds the single-shot budget, else one card.
+    const fullText = editor.getText();
+    if (!fullText.trim()) {
+      return;
+    }
+    const inputTokens = Math.ceil(fullText.length / 4);
+    let chunks;
+    if (inputTokens <= TRANSFORM_INPUT_BUDGET) {
+      chunks = [{ from: 0, to: editor.state.doc.content.size, text: fullText }];
+    } else {
+      chunks = buildChunks();
+    }
+    const total = chunks.length;
+    const runId = ++runIdRef.current;
+    transformRunningRef.current = true;
+    setTransformRunning(true);
+    cancelTransformRef.current = false;
+    editor.setEditable(false);
+    setTransformResults([]);
+    setTransformProgress({ current: 0, total });
+    let aborted = false;
+    for (let i = 0; i < total; i++) {
+      if (cancelTransformRef.current || runIdRef.current !== runId) {
+        aborted = true;
+        break;
+      }
+      setTransformProgress({ current: i + 1, total });
+      const chunk = chunks[i];
+      const result = await runTransform({ prompt, text: chunk.text });
+      if (runIdRef.current !== runId) {
+        aborted = true;
+        break;
+      }
+      if (result == null) {
+        // Errored/aborted — useTransform holds the error; stop the sequence.
+        aborted = true;
+        break;
+      }
+      const card = {
+        tool: name,
+        text: result,
+        from: chunk.from,
+        to: chunk.to,
+        part: i + 1,
+        total,
+      };
+      setTransformResults((prev) => [...prev, card]);
+    }
+    transformRunningRef.current = false;
+    setTransformRunning(false);
+    editor.setEditable(true);
+    setTransformProgress(null);
+    if (aborted && runIdRef.current === runId) {
+      // Cancel or error: clear the panel (per design — no partial cards kept).
+      // Guarded by runId so a stale loop waking after a newer run started can
+      // never clobber the new run's state.
+      setTransformResults([]);
+    }
+  }
+
+  function cancelTransform() {
+    cancelTransformRef.current = true;
+    // Invalidate this run so its async loop tears down instead of interfering
+    // with a run that may start next. Bump runId and abort the in-flight fetch
+    // so the awaiting runTransform rejects fast (client-side cancel is instant
+    // even though the backend finishes its current chunk quietly).
+    runIdRef.current += 1;
+    abortTransform();
+    transformRunningRef.current = false;
+    setTransformRunning(false);
+    editor?.setEditable(true);
+    setTransformResults([]);
+    setTransformProgress(null);
   }
 
   function normalizeTableCells(html) {
@@ -1019,11 +1167,11 @@ export default function App() {
     return doc.body.innerHTML;
   }
 
-  function applyTransformResult() {
-    if (!editor || !transformResult) {
+  function applyTransformResult(card) {
+    if (!editor || !card) {
       return;
     }
-    const { from, to, text } = transformResult;
+    const { from, to, text } = card;
     let html = marked.parse(text);
     if (/<table/i.test(html)) {
       html = normalizeTableCells(html);
@@ -1033,12 +1181,19 @@ export default function App() {
       .focus()
       .insertContentAt({ from, to }, html)
       .run();
-    setTransformResult(null);
-    setActiveTool("");
+    // Remove just this card so remaining parts stay available.
+    setTransformResults((prev) => {
+      const next = prev.filter((c) => c !== card);
+      if (next.length === 0) {
+        setActiveTool("");
+      }
+      return next;
+    });
   }
 
   function dismissTransformResult() {
-    setTransformResult(null);
+    setTransformResults([]);
+    setTransformProgress(null);
     setActiveTool("");
   }
 
@@ -1247,6 +1402,7 @@ export default function App() {
                 panelWidth={leftWidth}
                 isMac={isMac}
                 isWarming={isWarming}
+                transformRunning={transformRunning}
                 transformStatus={transformStatus}
               />
               {!aiConfigured && (
@@ -1321,7 +1477,7 @@ export default function App() {
           />
         </div>
 
-        <section className="flex-1 min-w-0 px-6 pt-4 pb-6">
+        <section className="relative flex-1 min-w-0 px-6 pt-4 pb-6">
           <Editor
             editor={editor}
             fontSize={fontSize}
@@ -1334,6 +1490,23 @@ export default function App() {
             proofreadActive={activeTool === "Proofread"}
             toneResult={toneResult}
           />
+          {transformRunning && (
+            <div className="pointer-events-none absolute right-12 top-3 z-10">
+              <div className="flex items-center gap-2.5 rounded-full border border-hairline bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur">
+                <CircleNotch size={14} weight="bold" className="animate-spin text-muted" />
+                <p className="font-sans text-xs text-ink">
+                  {activeTool} is running — editing paused
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleToolClick(activeTool)}
+                  className="pointer-events-auto rounded border border-hairline px-2 py-0.5 font-sans text-xs font-medium text-ink transition-colors hover:bg-hairline/60"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </section>
         <div
           ref={rightPanelRef}
@@ -1384,12 +1557,15 @@ export default function App() {
                 setActiveErrorId(null);
                 activeErrorRef.current = null;
                 setHoveredError(null);
-                setTransformResult(null);
+                setTransformResults([]);
+                setTransformProgress(null);
                 if (editor) {
                   clearGrammarDecorations(editor);
                 }
               }}
-              transformResult={transformResult}
+              transformResults={transformResults}
+              transformProgress={transformProgress}
+              transformRunning={transformRunning}
               transformStatus={transformStatus}
               transformError={transformError}
               onApplyTransform={applyTransformResult}

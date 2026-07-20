@@ -85,11 +85,16 @@ def ai_status():
     Ollama reachable, which bundled models are ready, and the user's saved
     preference. Drives the first-run setup flow and the settings
     surface."""
-    ollama = OllamaBackend()
-    active = get_backend()
     prefs = load_prefs()
+    # Only probe Ollama when it could actually be the active backend. Probing
+    # unconditionally forced a ~2.5s network timeout on every call even for
+    # users who chose the bundled model (Ollama not running) — making the
+    # frontend show "Checking AI status…" for seconds on every load.
+    probe_ollama = prefs.get("backend") in ("ollama", "auto")
+    ollama_available = OllamaBackend().available() if probe_ollama else False
+    active = get_backend()
     return {
-        "ollama_available": ollama.available(),
+        "ollama_available": ollama_available,
         "models_ready": models_ready(),
         "model_key": prefs["model_key"],
         "preference": prefs,

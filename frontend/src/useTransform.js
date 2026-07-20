@@ -42,5 +42,5 @@ export default function useTransform() {
     setStatus("idle");
   }, []);
 
-  return { status, error, run, cancel, isWarming: status === "warming" };
+  return { status, error, run, cancel, abort: cancel, isWarming: status === "warming" };
 }
