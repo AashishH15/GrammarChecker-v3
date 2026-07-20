@@ -1,22 +1,18 @@
 from contextlib import asynccontextmanager
 
-import os
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from fastapi.responses import JSONResponse
-
-from inference import get_backend, InferenceUnavailable, BundledBackend, OllamaBackend
+from inference import BundledBackend, InferenceUnavailable, OllamaBackend, get_backend
 from languagetool import check_text, warm_up
 from model_manager import (
-    download_model,
-    model_state,
-    model_path,
-    models_ready,
     cancel_download,
     delete_model,
+    download_model,
+    model_state,
+    models_ready,
 )
 
 

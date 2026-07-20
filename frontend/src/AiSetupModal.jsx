@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { X, DownloadSimple, ArrowRight, Cpu } from "@phosphor-icons/react";
 import Toggle from "./Toggle.jsx";
-import { getAiStatus, downloadModel, getModelStatus } from "./api.js";
+import {
+  getAiStatus,
+  downloadModel,
+  getModelStatus,
+  cancelModelDownload,
+  deleteModel,
+} from "./api.js";
 
 const AI_SETUP_KEY = "lexicon:aiSetupDone";
 // Model tiers offered in the bundle opt-in. 2B is the quality default; 0.8B
@@ -35,6 +41,7 @@ export default function AiSetupModal({ onClose }) {
   const [modelKey, setModelKey] = useState(adviseModelKey());
   const [phase, setPhase] = useState("choose"); // choose | downloading | done | error
   const [progress, setProgress] = useState(null); // {bytes_done, bytes_total}
+  const [deletingKey, setDeletingKey] = useState(null); // key currently being deleted
   const [error, setError] = useState("");
   const pollRef = useRef(null);
   // Becomes true the first time the user clicks a tier card, so a late probe
@@ -147,11 +154,20 @@ export default function AiSetupModal({ onClose }) {
   }
 
   async function handleDelete(key) {
+    setDeletingKey(key);
     try {
       await deleteModel(key);
+      setStatus((s) => ({
+        ...s,
+        models_ready: { ...(s.models_ready || {}), [key]: false },
+      }));
       refreshStatus();
+      setPhase("choose");
+      setProgress(null);
     } catch (exc) {
       setError(exc.message || "Delete failed.");
+    } finally {
+      setDeletingKey(null);
     }
   }
 
@@ -241,20 +257,30 @@ export default function AiSetupModal({ onClose }) {
                 const ready = status.models_ready?.[tier.key];
                 const downloading = phase === "downloading";
                 return (
-                  <button
-                    type="button"
+                  <div
                     key={tier.key}
-                    disabled={downloading}
+                    role="button"
+                    tabIndex={downloading ? -1 : 0}
+                    aria-pressed={selected}
                     onClick={() => {
+                      if (downloading) return;
                       userPickedRef.current = true;
                       setModelKey(tier.key);
+                    }}
+                    onKeyDown={(e) => {
+                      if (downloading) return;
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        userPickedRef.current = true;
+                        setModelKey(tier.key);
+                      }
                     }}
                     className={
                       "rounded-lg border px-3 py-2 text-left transition-colors " +
                       (selected
                         ? "border-pale-blue-text bg-pale-blue/40"
                         : "border-hairline bg-canvas hover:border-muted") +
-                      (downloading ? " cursor-not-allowed opacity-50" : "")
+                      (downloading ? " cursor-not-allowed opacity-50" : " cursor-pointer")
                     }
                   >
                     <span className="flex items-center justify-between">
@@ -272,26 +298,25 @@ export default function AiSetupModal({ onClose }) {
                     </span>
                     {ready && (
                       <span className="mt-2 inline-block">
-                        <span
-                          role="button"
-                          tabIndex={0}
+                        <button
+                          type="button"
+                          disabled={deletingKey === tier.key}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDelete(tier.key);
                           }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.stopPropagation();
-                              handleDelete(tier.key);
-                            }
-                          }}
-                          className="cursor-pointer rounded border border-hairline px-2 py-1 font-sans text-[11px] text-pale-red-text transition-colors hover:border-pale-red-text"
+                          className={
+                            "cursor-pointer rounded border px-2 py-1 font-sans text-[11px] transition-colors " +
+                            (deletingKey === tier.key
+                              ? "cursor-wait border-hairline text-muted animate-pulse"
+                              : "border-hairline text-pale-red-text hover:border-pale-red-text")
+                          }
                         >
-                          Delete
-                        </span>
+                          {deletingKey === tier.key ? "Deleting…" : "Delete"}
+                        </button>
                       </span>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>

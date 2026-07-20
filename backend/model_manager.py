@@ -95,9 +95,11 @@ def model_state(model_key: str | None = None) -> dict:
     tag accurate after a download finishes or a file is deleted.
     """
     key = model_key or DEFAULT_MODEL_KEY
-    st = dict(MODEL_STATUS.get(key, {"state": "idle", "bytes_done": 0, "bytes_total": 0, "error": None}))
+    default = {"state": "idle", "bytes_done": 0, "bytes_total": 0, "error": None}
+    st = dict(MODEL_STATUS.get(key, default))
     if st["state"] in ("idle", "ready", "cancelled") and _already_installed(key):
-        st = {**st, "state": "ready", "bytes_done": MODELS[key]["size"], "bytes_total": MODELS[key]["size"]}
+        size = MODELS[key]["size"]
+        st = {**st, "state": "ready", "bytes_done": size, "bytes_total": size}
     if st["state"] in ("idle", "cancelled") and not os.path.exists(model_path(key)):
         st = {**st, "bytes_done": 0, "bytes_total": 0}
     return st
