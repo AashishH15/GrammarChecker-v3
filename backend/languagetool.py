@@ -16,12 +16,22 @@ def _get_tool():
         import language_tool_python
 
         if os.name == "nt":
-            # language_tool_python already redirects the JVM's output, but
-            # explicitly request a hidden Windows window as well. Without
-            # SW_HIDE, java.exe can briefly flash a console during startup.
             import subprocess
-
             import language_tool_python.server as language_tool_server
+
+            create_no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            orig_popen = subprocess.Popen
+
+            def quiet_popen(*args, **kwargs):
+                kwargs["creationflags"] = kwargs.get("creationflags", 0) | create_no_window
+                startupinfo = kwargs.get("startupinfo") or subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0)
+                startupinfo.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+                kwargs["startupinfo"] = startupinfo
+                return orig_popen(*args, **kwargs)
+
+            if hasattr(language_tool_server, "subprocess"):
+                language_tool_server.subprocess.Popen = quiet_popen
 
             startupinfo_cls = getattr(subprocess, "STARTUPINFO", None)
             if startupinfo_cls is not None:
@@ -56,12 +66,21 @@ def close_tool():
     global _tool, _warm
     if _tool is not None:
         try:
+            if hasattr(_tool, "_server") and _tool._server:
+                server_proc = getattr(_tool._server, "_process", None)
+                if server_proc and hasattr(server_proc, "pid") and os.name == "nt":
+                    import subprocess
+                    subprocess.run(
+                        f"taskkill /PID {server_proc.pid} /T /F",
+                        shell=True,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
             _tool.close()
         except Exception:
             pass
     _tool = None
     _warm = False
-
 
 def _filter_ignored(matches, text, ignore):
     """Drop matches whose flagged word is in the user's dictionary."""

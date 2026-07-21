@@ -253,9 +253,15 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            let child = start_backend(app.handle())?;
+            let initial_child = match start_backend(app.handle()) {
+                Ok(child) => Some(child),
+                Err(error) => {
+                    eprintln!("Warning: initial backend sidecar start failed: {error}");
+                    None
+                }
+            };
             app.manage(BackendState {
-                child: Mutex::new(Some(child)),
+                child: Mutex::new(initial_child),
                 last_activity: Mutex::new(Instant::now()),
                 lifecycle: Mutex::new(()),
             });
@@ -279,7 +285,16 @@ fn main() {
                             let _ = window.set_focus();
                         }
                     }
-                    "quit" => app.exit(0),
+                    "quit" => {
+                        stop_backend(app);
+                        #[cfg(target_os = "windows")]
+                        {
+                            let _ = Command::new("taskkill")
+                                .args(["/F", "/IM", "lexicon-backend.exe", "/IM", "java.exe"])
+                                .status();
+                        }
+                        app.exit(0);
+                    }
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
@@ -318,6 +333,12 @@ fn main() {
             }
             RunEvent::ExitRequested { .. } | RunEvent::Exit => {
                 stop_backend(app_handle);
+                #[cfg(target_os = "windows")]
+                {
+                    let _ = Command::new("taskkill")
+                        .args(["/F", "/IM", "lexicon-backend.exe", "/IM", "java.exe"])
+                        .status();
+                }
             }
             _ => {}
         });
