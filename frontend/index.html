@@ -4,6 +4,42 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lexicon</title>
+    <style>
+      :root,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #f7f7f5;
+      }
+
+      #root {
+        min-height: 100vh;
+      }
+
+      .lexicon-boot-screen {
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: #787774;
+        font-family: Georgia, serif;
+      }
+
+      .lexicon-boot-screen strong {
+        color: #111111;
+        font-size: 28px;
+        font-weight: 500;
+      }
+
+      .lexicon-boot-screen span {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -12,7 +48,12 @@
     />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="lexicon-boot-screen" role="status" aria-live="polite">
+        <strong>Lexicon</strong>
+        <span>Starting local workspace&hellip;</span>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

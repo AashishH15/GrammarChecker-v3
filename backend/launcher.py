@@ -34,6 +34,7 @@ def main():
         log_config=None,
     )
     server = uvicorn.Server(config)
+    app.state.server = server
 
     # Exit cleanly on SIGTERM (Tauri sends this when the window closes).
     def _handle_term(*_):

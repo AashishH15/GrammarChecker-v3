@@ -2,16 +2,81 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
-use tauri::{Manager, RunEvent};
+use tauri::menu::{MenuBuilder, MenuItemBuilder};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{Manager, RunEvent, WindowEvent};
 
 struct BackendChild(Mutex<Option<Child>>);
 const BACKEND_PORT: u16 = 18000;
+
+fn request_backend_shutdown() -> bool {
+    let address: SocketAddr = match format!("127.0.0.1:{BACKEND_PORT}").parse() {
+        Ok(address) => address,
+        Err(_) => return false,
+    };
+    let mut stream = match TcpStream::connect_timeout(&address, Duration::from_millis(500)) {
+        Ok(stream) => stream,
+        Err(_) => return false,
+    };
+    let request = format!(
+        "POST /shutdown HTTP/1.1\r\nHost: 127.0.0.1:{BACKEND_PORT}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+    );
+    if stream.write_all(request.as_bytes()).is_err() {
+        return false;
+    }
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+    let mut response = Vec::new();
+    let _ = stream.read_to_end(&mut response);
+    true
+}
+
+fn terminate_backend_tree(child: &mut Child) {
+    #[cfg(target_os = "windows")]
+    {
+        let pid = child.id().to_string();
+        let _ = Command::new("taskkill")
+            .args(["/PID", pid.as_str(), "/T", "/F"])
+            .status();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = child.kill();
+    }
+    let _ = child.wait();
+}
+
+fn stop_backend(app_handle: &tauri::AppHandle) {
+    if let Some(state) = app_handle.try_state::<BackendChild>() {
+        if let Ok(mut child) = state.0.lock() {
+            if let Some(mut child) = child.take() {
+                if !request_backend_shutdown() {
+                    terminate_backend_tree(&mut child);
+                    return;
+                }
+                let deadline = Instant::now() + Duration::from_secs(5);
+                loop {
+                    match child.try_wait() {
+                        Ok(Some(_)) => break,
+                        Ok(None) if Instant::now() < deadline => {
+                            thread::sleep(Duration::from_millis(50));
+                        }
+                        _ => {
+                            terminate_backend_tree(&mut child);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 fn wait_for_backend(child: &mut Child, port: u16) -> Result<(), String> {
     let address: SocketAddr = format!("127.0.0.1:{port}")
@@ -91,19 +156,63 @@ fn main() {
             }
             app.manage(BackendChild(Mutex::new(Some(child))));
 
+            let open_item = MenuItemBuilder::with_id("open", "Open Lexicon").build(app)?;
+            let quit_item = MenuItemBuilder::with_id("quit", "Quit Lexicon").build(app)?;
+            let tray_menu = MenuBuilder::new(app)
+                .items(&[&open_item, &quit_item])
+                .build()?;
+
+            let mut tray = TrayIconBuilder::with_id("lexicon-tray")
+                .menu(&tray_menu)
+                .show_menu_on_left_click(false)
+                .tooltip("Lexicon")
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "open" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        if let Some(window) = tray.app_handle().get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
+                        }
+                    }
+                });
+            if let Some(icon) = app.default_window_icon().cloned() {
+                tray = tray.icon(icon);
+            }
+            tray.build(app)?;
+
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building Lexicon")
-        .run(|app_handle, event| {
-            if let RunEvent::Exit = event {
-                if let Some(state) = app_handle.try_state::<BackendChild>() {
-                    if let Ok(mut child) = state.0.lock() {
-                        if let Some(mut child) = child.take() {
-                            let _ = child.kill();
-                        }
-                    }
+        .run(|app_handle, event| match event {
+            RunEvent::WindowEvent {
+                event: WindowEvent::CloseRequested { api, .. },
+                ..
+            } => {
+                api.prevent_close();
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.hide();
                 }
             }
+            RunEvent::ExitRequested { .. } | RunEvent::Exit => {
+                stop_backend(app_handle);
+            }
+            _ => {}
         });
 }

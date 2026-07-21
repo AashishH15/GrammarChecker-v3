@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from ai_prefs import load_prefs, save_prefs
 from inference import BundledBackend, InferenceUnavailable, OllamaBackend, get_backend
-from languagetool import check_text
+from languagetool import check_text, close_tool
 from model_manager import (
     cancel_download,
     delete_model,
@@ -21,14 +21,13 @@ from model_manager import (
 async def lifespan(app: FastAPI):
     # LanguageTool starts lazily on the first proofreading request so the
     # desktop window does not remain blank while the JVM warms up.
-    # Probe for a local inference backend: prefer a detected Ollama
-    # server, else fall back to the bundled backend. Swallowed so a missing
-    # backend never blocks startup; it re-resolves lazily on first use.
+    # Inference backends also resolve lazily. Do not probe Ollama here: a
+    # stopped local server can take several seconds to time out, and Tauri
+    # waits for this sidecar before showing the first window.
     try:
-        get_backend()
-    except Exception:
-        pass
-    yield
+        yield
+    finally:
+        close_tool()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -74,6 +73,16 @@ class TransformRequest(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.post("/shutdown")
+def shutdown():
+    """Gracefully stop the sidecar and its LanguageTool JVM."""
+    close_tool()
+    server = getattr(app.state, "server", None)
+    if server is not None:
+        server.should_exit = True
+    return {"shutting_down": server is not None}
 
 
 @app.post("/grammar/check")
@@ -152,14 +161,21 @@ def model_delete(request: ModelDownloadRequest):
 
 @app.post("/model/download")
 def model_download(request: ModelDownloadRequest):
-    """Trigger a bundled-model download. Runs synchronously; the frontend will
-    poll /model/status for progress and the backend will load the file once 'ready'."""
+    """Download and activate the requested bundled model tier.
+
+    The frontend labels this action "Download & enable", so persist the
+    bundled preference only after the file is ready. This keeps onboarding and
+    Settings consistent, including when the user chooses the Light tier.
+    """
     try:
         status = download_model(request.model_key)
     except ValueError as exc:
         return JSONResponse(status_code=400, content={"error": str(exc)})
     except RuntimeError as exc:
         return JSONResponse(status_code=500, content={"error": str(exc)})
+    if status.get("state") == "ready":
+        save_prefs("bundled", request.model_key)
+        get_backend(force_refresh=True)
     return status
 
 

@@ -36,6 +36,18 @@ def warm_up():
         _warm = False
 
 
+def close_tool():
+    """Stop the LanguageTool JVM owned by this backend process."""
+    global _tool, _warm
+    if _tool is not None:
+        try:
+            _tool.close()
+        except Exception:
+            pass
+    _tool = None
+    _warm = False
+
+
 def _filter_ignored(matches, text, ignore):
     """Drop matches whose flagged word is in the user's dictionary."""
     if not ignore:
