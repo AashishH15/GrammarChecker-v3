@@ -74,7 +74,7 @@ jobs:
             include_llama: "true"
             jre_url: https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_x64_mac_hotspot_21.0.5_11.tar.gz
             jre_archive: jre.tar.gz
-            bundle: dmg
+            bundle: app,dmg
             extension: dmg
             artifact_name: lexicon-macos-x64
 
@@ -87,7 +87,7 @@ jobs:
             include_llama: "true"
             jre_url: https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_aarch64_mac_hotspot_21.0.5_11.tar.gz
             jre_archive: jre.tar.gz
-            bundle: dmg
+            bundle: app,dmg
             extension: dmg
             artifact_name: lexicon-macos-arm64
 

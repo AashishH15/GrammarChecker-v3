@@ -18,6 +18,7 @@
 <p align="center">
   <a href="https://github.com/AashishH15/Lexicon/releases/latest"><img src="https://img.shields.io/github/v/release/AashishH15/Lexicon?display_name=tag" alt="Latest release" /></a>
   <a href="https://github.com/AashishH15/Lexicon/blob/master/LICENSE"><img src="https://img.shields.io/github/license/AashishH15/Lexicon" alt="License" /></a>
+  <a href="#download"><img src="https://img.shields.io/badge/supported%20OS-Windows%20%7C%20macOS-4c8bf5" alt="Supported OS: Windows and macOS" /></a>
 </p>
 
 <p align="center">
