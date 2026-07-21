@@ -1,5 +1,6 @@
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { invoke } from "@tauri-apps/api/core";
 
 function isTauriRuntime() {
   return typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__);
@@ -20,7 +21,7 @@ export async function installUpdate(update, onProgress = () => {}) {
   let downloaded = 0;
   let total = 0;
 
-  await update.downloadAndInstall((event) => {
+  await update.download((event) => {
     if (event.event === "Started") {
       total = event.data.contentLength || 0;
       onProgress({ downloaded: 0, total });
@@ -32,5 +33,9 @@ export async function installUpdate(update, onProgress = () => {}) {
     }
   });
 
+  // The Windows installer replaces bundled backend/JRE files. Stop the
+  // backend explicitly before installing so its DLLs are no longer locked.
+  await invoke("prepare_for_update");
+  await update.install();
   await relaunch();
 }

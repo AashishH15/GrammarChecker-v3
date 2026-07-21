@@ -205,6 +205,12 @@ fn ensure_backend(app_handle: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn prepare_for_update(app_handle: tauri::AppHandle) -> Result<(), String> {
+    stop_backend(&app_handle);
+    Ok(())
+}
+
 fn backend_is_idle(app_handle: &tauri::AppHandle) -> bool {
     let Some(state) = app_handle.try_state::<BackendState>() else {
         return false;
@@ -293,7 +299,7 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![ensure_backend])
+        .invoke_handler(tauri::generate_handler![ensure_backend, prepare_for_update])
         .build(tauri::generate_context!())
         .expect("error while building Lexicon")
         .run(|app_handle, event| match event {
