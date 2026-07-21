@@ -333,17 +333,24 @@ jobs:
           except Exception:
               pass
 
+          if not tag_msg and Path("RELEASE_NOTES.md").is_file():
+              tag_msg = Path("RELEASE_NOTES.md").read_text(encoding="utf-8").strip()
+
           if not tag_msg and Path("CHANGELOG.md").is_file():
               changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
-              match = re.search(r'##\s+.*' + re.escape(tag) + r'[\s\S]*?(?=\n##\s+|\Z)', changelog)
+              clean_ver = version.lstrip("v")
+              pattern = r'##\s+.*(?:' + re.escape(tag) + r'|' + re.escape(clean_ver) + r')[\s\S]*?(?=\n##\s+|\Z)'
+              match = re.search(pattern, changelog, re.IGNORECASE)
               if match:
                   tag_msg = match.group(0).strip()
 
           if not tag_msg:
               try:
-                  tag_msg = subprocess.check_output(
+                  commit_msg = subprocess.check_output(
                       ["git", "log", "-1", "--pretty=format:%B"], text=True
                   ).strip()
+                  if ("\n" in commit_msg or "-" in commit_msg) and len(commit_msg) > 30:
+                      tag_msg = commit_msg
               except Exception:
                   pass
 
