@@ -1,194 +1,209 @@
-<div align="center">
-
-![Lexicon](media/Lexicon.jpg)
-
-# Lexicon: Local-First Writing Assistant
-
-**Open Source • Privacy-First • Offline**<br>
-**Fix Grammar, Rewriting & Tone - Your Words Stay on Your Laptop**
-
-</div>
-
-A 20-second tour of what Lexicon is:
-
-![Lexicon](media/Lexicon.gif)
-<p align=center>
-<a href="https://github.com/AashishH15/Lexicon/blob/master/media/Lexicon.mp4">View Video</a>
+<p align="center">
+  <img src="media/lexicon-logo.png" alt="Lexicon logo" width="150" />
 </p>
 
-A distraction-free rich-text editor, inline grammar squiggles, and
-one-click suggestion cards. All running offline on your own machine.
+<h1 align="center">Lexicon</h1>
 
-<details>
-  <summary><strong>Table of Contents</strong></summary>
+<p align="center">
+  <strong>A local-first writing assistant for clearer drafts.</strong><br />
+  Proofread, rewrite, format, and export your work while keeping your words on your machine.
+</p>
 
-- [Why Lexicon](#why-lexicon)
-- [Layout](#layout)
-  - [Writing canvas](#writing-canvas)
-  - [Grammar & review](#grammar--review)
-  - [Import / Export](#import--export)
-  - [Settings & shortcuts](#settings--shortcuts)
-- [Running the backend](#running-the-backend)
-  - [Grammar engine (LanguageTool)](#grammar-engine-languagetool)
-- [Running the frontend](#running-the-frontend)
-- [Acknowledgements](#acknowledgements)
+<p align="center">
+  <a href="https://github.com/AashishH15/Lexicon/releases/latest">Download the latest release</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/AashishH15/Lexicon/issues">Report an issue</a>
+</p>
 
-</details>
+<p align="center">
+  <a href="https://github.com/AashishH15/Lexicon/releases/latest"><img src="https://img.shields.io/github/v/release/AashishH15/Lexicon?display_name=tag" alt="Latest release" /></a>
+  <a href="https://github.com/AashishH15/Lexicon/blob/master/LICENSE"><img src="https://img.shields.io/github/license/AashishH15/Lexicon" alt="License" /></a>
+</p>
 
-## Why Lexicon
+<p align="center">
+  <img src="media/Lexicon.gif" alt="Lexicon editor tour" />
+</p>
 
-A local-first AI writing assistant that runs entirely on your machine. No
-accounts, no cloud, no usage costs. Inspired by the web
-versions of Grammarly and Quillbot, with the kind of writing tools Apple
-ships in its "Writing Tools" feature.
+Lexicon is a distraction-free rich-text editor with inline proofreading,
+local AI writing tools, and a review panel for suggestions. It is designed to
+feel calm, private, and useful without requiring an account or a cloud writing
+service.
 
-The earlier versions were desktop Tkinter apps with weak engines:
+## Download
 
-- v1 ([GrammarCheck](https://github.com/AashishH15/GrammarCheck)) used LanguageTool for grammar but had no AI rewriting.
-- v2 ([Grammar-Checker-v2](https://github.com/AashishH15/Grammar-Checker-v2)) used TextBlob, which is really just a spellchecker.
+Download the installer for your device from the
+[latest GitHub release](https://github.com/AashishH15/Lexicon/releases/latest).
 
-Both were dated desktop UIs. Lexicon moves to a browser/desktop-based app and pairs a real
-grammar engine with a local LLM for rewriting and tone.
+### Windows
 
-## Layout
+- **x64** - most modern Intel and AMD PCs
+- **ARM64** - Windows ARM devices
+- **x86** - older 32-bit Windows systems
 
-Lexicon is a three-column workspace:
+The Windows installer bundles the app backend and its runtime. You do not need
+Python, Node.js, or Java to use the installed application.
 
-- **Tool Matrix (left):** the actions panel; Proofread and the AI writing
-  tools, plus quick access to your dictionary and settings.
-- **Editor (center):** a full rich-text canvas with a formatting
-  toolbar, inline grammar squiggles, and a slash-command menu.
-- **Review Panel (right):** grammar/clarity suggestion cards you can apply or
-  dismiss, a tone read, and a clarity score.
+### macOS
 
-Both side panels can be collapsed, resized, or hidden entirely via Focus Mode
-for a distraction-free, full-width editor.
+- **Apple Silicon / arm64** - M-series Macs
+- **Intel / x64** - Intel Macs
 
-### Writing canvas
+The macOS build is currently unsigned and not notarized. If macOS blocks the
+first launch, Control-click the app and choose **Open**, or use
+**System Settings > Privacy & Security > Open Anyway**. Only download builds
+from this repository's releases page.
 
-A rich, Grammarly-style editor:
+Linux installers are not packaged yet.
 
-- **Formatting:** bold, italic, underline, strikethrough, highlight,
-  superscript/subscript, inline code, and links (with an inline URL popover).
-- **Structure:** headings (H1–H6), bullet / numbered / task lists, blockquotes,
-  text alignment, code blocks with syntax highlighting, images, and tables
-  (Google-Docs-style grid picker + full row/column editing).
-- **Math:** inline (`$...$`) and block (`$$$...$$$`) LaTeX rendered with KaTeX,
-  with a live-preview editor popover.
-- **Smart typography:** automatic em-dashes, ellipses, and smart quotes.
-- **Slash commands:** type `/` anywhere to open a filterable command menu with
-  full keyboard navigation and multi-select mark toggling.
-- **Drag handles**, a **placeholder** for empty drafts, and content
-  **auto-saved** to `localStorage`.
+## First launch
 
-### Grammar & review
+1. Open Lexicon and choose whether to download a local AI model.
+2. Choose **Light** for the smaller, faster model (about 0.8 GB), or
+   **Standard** for the larger model (about 1.4 GB).
+3. Wait for the download progress to finish. The model is stored in your local
+   app data and does not need to be downloaded again after a restart.
+4. The first AI action may briefly warm up the local model. Proofread uses the
+   separate LanguageTool engine and does not require the AI model.
 
-- **Inline squiggles:** LanguageTool errors render as faint red highlights
-  directly in the editor, like real Grammarly.
-- **Suggestion cards:** hover or click a squiggle to jump to its card in the
-  Review Panel; apply or dismiss individual fixes, or **Accept all / Dismiss
-  all** in one pass. Dismissed suggestions stay dismissed across re-runs.
-- **Tone detection** and a **clarity score** summarize the draft.
-- **User dictionary:** add words so they stop being flagged (persisted, with a
-  dedicated management panel).
+The editor and proofreading tools work without downloading an AI model. The AI
+tools can also use an existing local Ollama server when one is available.
 
-### Import / Export
+## What Lexicon includes
 
-- **Import:** `.txt`, `.md` / `.markdown`, and `.html` files load straight into
-  the editor.
-- **Export:** save your document as **HTML**, **Plain Text**, **Markdown**, or
-  **PDF**. PDF export uses the browser's print pipeline with a dedicated print
-  stylesheet for a clean "final manuscript" page — user highlights are
-  preserved, grammar squiggles and app chrome are stripped, and page margins
-  are set for a proper document look.
+### Writing workspace
 
-### Settings & shortcuts
+- Rich-text editing with headings, lists, tasks, links, images, code blocks,
+  tables, blockquotes, alignment, highlights, and typography rules
+- Inline and block LaTeX math with a live preview editor
+- Slash commands with keyboard navigation
+- Resizable side panels, Focus Mode, drag handles, and local auto-save
+- Language, font size, line spacing, and keyboard shortcut settings
+- Personal dictionary for words that should not be flagged
 
-- Language picker, font size, line spacing, and Focus Mode, with **smart
-  defaults** and a one-click **Reset to Default**.
-- Keyboard shortcuts (e.g. `Ctrl/Cmd + Enter` to Proofread, accept/dismiss
-  shortcuts, `Esc` / `Mod-,` for settings) with an in-app cheat sheet.
+### Proofreading and review
 
-## Quick start
+- Local LanguageTool proofreading with inline grammar and spelling squiggles
+- Clickable suggestion cards that stay synchronized with the editor
+- Apply, dismiss, accept all, and dismiss all actions
+- Dismissed suggestions remain dismissed across re-checks
+- Tone detection and a clarity/readability score
 
-Download and write locally — the **editor and Proofread are live today**; AI
-rewriting/tone tools arrive in a later release. Requires **Python 3**, **Node.js
-+ npm**, and **Java** (LanguageTool downloads on first proofread).
+### Local AI tools
 
-From the project root, run **one** command:
+With a downloaded bundled model, Lexicon provides:
+
+- Rewrite and Concise
+- Friendly, Professional, Academic, Formal, Casual, Playful, Empathetic,
+  Persuasive, and Humorous tone tools
+- Summary, Key Points, List, and Table transforms
+- Whole-document transforms with chunk progress for longer drafts
+
+AI transforms run locally through the bundled llama.cpp backend. Ollama is an
+optional alternative for users who already run it on their machine.
+
+### Import and export
+
+- Import `.txt`, `.md`, `.markdown`, `.html`, and `.htm` files
+- Export HTML, plain text, Markdown, or PDF
+- PDF export produces a clean manuscript-style document with app chrome and
+  proofreading marks removed
+
+## Privacy and local data
+
+Lexicon is local-first:
+
+- Your writing is not sent to Lexicon's servers.
+- Documents are auto-saved locally in the app's browser storage.
+- Downloaded models remain in your platform's Lexicon app-data directory.
+- The initial model download connects to Hugging Face only to retrieve the
+  selected model file.
+- Ollama, when selected, is a local server you run yourself.
+
+## Developer setup
+
+The packaged desktop app is the recommended experience for regular users. To
+run the project from source, you need Python 3, Node.js with npm, and Java for
+the LanguageTool development backend. The packaged application includes its
+own Java runtime.
+
+### Quick start
+
+From the project root:
 
 ```bash
 # macOS / Linux
 ./start.sh
 ```
+
 ```bat
 REM Windows
 .\start.bat
 ```
 
-This installs both sides (if needed) and launches them. Then open:
+These scripts create the backend environment when needed, install
+dependencies, and start the local frontend and backend. Open
+<http://localhost:5173> in your browser.
 
-- **App:** http://localhost:5173
-- **API:** http://localhost:8000
+### Manual setup
 
-Close the terminals / windows to stop. For the manual, two-step setup, see
-*Running the backend* and *Running the frontend* below.
+Backend:
 
-## Running the backend
-
-```
+```bash
 cd backend
+python -m venv venv
+```
+
+Activate the environment, then install the dependencies:
+
+```bash
+# Windows
+venv\Scripts\activate
+
+# macOS / Linux
+source venv/bin/activate
+
 pip install -r requirements.txt
-uvicorn main:app --reload
+uvicorn main:app --reload --port 8000
 ```
 
-The API is then available at http://localhost:8000.
+In a second terminal:
 
-### Grammar engine (LanguageTool)
-
-The backend uses `language_tool_python`, which downloads and runs LanguageTool
-locally on first use. No separate server or Docker needed. Java is required
-(LanguageTool runs on the JVM); install it from java.com if absent.
-
-To point at an already-running LanguageTool server instead, set:
-
-```
-set LANGUAGETOOL_SERVER=http://localhost:8081
-```
-
-## Running the frontend
-
-```
+```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-The app is then available at http://localhost:5173 (or 5174 if 5173 is busy).
+The development frontend runs at <http://localhost:5173> and the backend API
+runs at <http://localhost:8000>.
 
-> **Note:** TipTap is pinned to `3.27.4`. When adding a new `@tiptap/*`
-> package, install it with `--save-exact @3.27.4` to keep every extension on
-> the same version.
+## Platform and release status
+
+The release workflow builds desktop installers for Windows x86, x64, and
+ARM64, plus macOS Intel and Apple Silicon. Builds are triggered from version
+tags and attached to GitHub Releases.
+
+## Technology
+
+- React, Vite, Tailwind CSS, and TipTap
+- FastAPI and Uvicorn
+- LanguageTool for rule-based proofreading
+- llama.cpp and quantized GGUF models for bundled local AI
+- Tauri for the cross-platform desktop shell
 
 ## Acknowledgements
 
-Lexicon is built on the shoulders of several super awesome open-source projects and tools:
+Lexicon is built with:
 
-- **[TipTap](https://github.com/ueberdosis/tiptap):** the headless rich-text editor framework
-  (built on ProseMirror) that powers the writing canvas, inline grammar
-  squiggles, and formatting toolbar.
-- **[KaTeX](https://github.com/KaTeX/KaTeX):** renders the inline and block LaTeX math.
-- **[lowlight](https://github.com/wooorm/lowlight):** syntax highlighting for code blocks.
-- **[marked](https://github.com/markedjs/marked)** & **[Turndown](https://github.com/mixmark-io/turndown):** Markdown import and export conversion.
-- **[Phosphor Icons](https://github.com/phosphor-icons/homepage):** the icon set used across
-  the tool matrix, format toolbar, settings, and suggestion cards.
-- **[LanguageTool](https://github.com/languagetool-org/languagetool):** the rule-based grammar and
-  spell-checking engine (`language_tool_python`) that drives inline squiggles
-  and the Proofread pass.
-- **[React](https://github.com/facebook/react):** the UI library behind the frontend.
-- **[Vite](https://github.com/vitejs/vite):** the build tool and dev server.
-- **[Tailwind CSS](https://github.com/tailwindlabs/tailwindcss):** the utility-first styling
-  layer that implements the Lexicon design system.
-- **[FastAPI](https://github.com/fastapi/fastapi):** the Python backend that serves
-  the API and the frontend.
-- **[Uvicorn](https://github.com/Kludex/uvicorn):** the ASGI server running the backend.
+- [TipTap](https://tiptap.dev/) and [ProseMirror](https://prosemirror.net/)
+- [KaTeX](https://katex.org/)
+- [lowlight](https://github.com/wooorm/lowlight)
+- [marked](https://marked.js.org/) and [Turndown](https://github.com/mixmark-io/turndown)
+- [Phosphor Icons](https://phosphoricons.com/)
+- [LanguageTool](https://languagetool.org/)
+- [React](https://react.dev/), [Vite](https://vite.dev/), and
+  [Tailwind CSS](https://tailwindcss.com/)
+- [FastAPI](https://fastapi.tiangolo.com/) and
+  [Uvicorn](https://www.uvicorn.org/)
+
+See [LICENSE](LICENSE) for licensing information.
