@@ -121,25 +121,20 @@ fn stop_backend(app_handle: &tauri::AppHandle) {
         let Ok(_lifecycle) = state.lifecycle.lock() else {
             return;
         };
-        if let Ok(mut child) = state.child.lock() {
-            if let Some(mut child) = child.take() {
-                if !request_backend_shutdown() {
-                    terminate_backend_tree(&mut child);
-                    return;
-                }
-                let deadline = Instant::now() + Duration::from_secs(5);
-                loop {
-                    match child.try_wait() {
-                        Ok(Some(_)) => break,
-                        Ok(None) if Instant::now() < deadline => {
-                            thread::sleep(Duration::from_millis(50));
-                        }
-                        _ => {
-                            terminate_backend_tree(&mut child);
+        if let Ok(mut child_lock) = state.child.lock() {
+            if let Some(mut child) = child_lock.take() {
+                if request_backend_shutdown() {
+                    let deadline = Instant::now() + Duration::from_secs(2);
+                    while Instant::now() < deadline {
+                        if let Ok(Some(_)) = child.try_wait() {
                             break;
                         }
+                        thread::sleep(Duration::from_millis(50));
                     }
                 }
+                // Always terminate the full process tree (including Java/child processes)
+                // so no orphan processes or locked DLLs remain.
+                terminate_backend_tree(&mut child);
             }
         }
     }
@@ -208,6 +203,15 @@ fn ensure_backend(app_handle: tauri::AppHandle) -> Result<(), String> {
 #[tauri::command]
 fn prepare_for_update(app_handle: tauri::AppHandle) -> Result<(), String> {
     stop_backend(&app_handle);
+    #[cfg(target_os = "windows")]
+    {
+        // Ensure no lingering backend executable processes remain open on Windows
+        // and allow Windows kernel time to release file locks on DLLs.
+        let _ = Command::new("taskkill")
+            .args(["/IM", "lexicon-backend.exe", "/T", "/F"])
+            .status();
+        thread::sleep(Duration::from_millis(500));
+    }
     Ok(())
 }
 
