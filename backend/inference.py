@@ -198,6 +198,14 @@ class BundledBackend(InferenceBackend):
             verbose=False,
         )
 
+    def unload(self):
+        """Free GGUF model memory and force garbage collection."""
+        if self._llm is not None:
+            self._llm = None
+            import gc
+
+            gc.collect()
+
     def complete(self, prompt: str, text: str, **opts) -> str:
         self._ensure_loaded()
         max_tokens = int(opts.pop("max_tokens", TRANSFORM_MAX_TOKENS))
@@ -295,6 +303,18 @@ def get_backend(force_refresh: bool = False) -> InferenceBackend:
     ollama = OllamaBackend()
     _backend = ollama if ollama.available() else BundledBackend(model_key=key)
     return _backend
+
+
+def unload_active_backend():
+    """Unload cached backend model weights from memory."""
+    global _backend
+    if _backend is not None:
+        if hasattr(_backend, "unload"):
+            _backend.unload()
+        _backend = None
+    import gc
+
+    gc.collect()
 
 
 if __name__ == "__main__":

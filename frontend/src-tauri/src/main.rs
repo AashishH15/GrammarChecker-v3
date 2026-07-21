@@ -16,17 +16,21 @@ use tauri::{Manager, RunEvent, WindowEvent};
 struct BackendState {
     child: Mutex<Option<Child>>,
     last_activity: Mutex<Instant>,
+    tier1_offloaded: Mutex<bool>,
+    tier2_offloaded: Mutex<bool>,
     lifecycle: Mutex<()>,
 }
 
 const BACKEND_PORT: u16 = 18000;
-const BACKEND_IDLE_AFTER: Duration = Duration::from_secs(20 * 60);
-const BACKEND_IDLE_POLL: Duration = Duration::from_secs(30);
+const TIER1_LLM_IDLE_SECS: u64 = 5 * 60;       // 5 minutes: unload LLM model weights
+const TIER2_LT_IDLE_SECS: u64 = 15 * 60;      // 15 minutes: stop LanguageTool JVM
+const TIER3_SIDECAR_IDLE_SECS: u64 = 30 * 60; // 30 minutes: shutdown sidecar
+const BACKEND_IDLE_POLL: Duration = Duration::from_secs(15);
 
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-fn request_backend_shutdown() -> bool {
+fn post_backend_endpoint(endpoint: &str) -> bool {
     let address: SocketAddr = match format!("127.0.0.1:{BACKEND_PORT}").parse() {
         Ok(address) => address,
         Err(_) => return false,
@@ -36,15 +40,19 @@ fn request_backend_shutdown() -> bool {
         Err(_) => return false,
     };
     let request = format!(
-        "POST /shutdown HTTP/1.1\r\nHost: 127.0.0.1:{BACKEND_PORT}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        "POST {endpoint} HTTP/1.1\r\nHost: 127.0.0.1:{BACKEND_PORT}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
     );
     if stream.write_all(request.as_bytes()).is_err() {
         return false;
     }
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(1)));
     let mut response = Vec::new();
     let _ = stream.read_to_end(&mut response);
     true
+}
+
+fn request_backend_shutdown() -> bool {
+    post_backend_endpoint("/shutdown")
 }
 
 fn terminate_backend_tree(child: &mut Child) {
@@ -193,6 +201,13 @@ fn ensure_backend(app_handle: tauri::AppHandle) -> Result<(), String> {
         *child = Some(start_backend(&app_handle)?);
     }
 
+    if let Ok(mut t1) = state.tier1_offloaded.lock() {
+        *t1 = false;
+    }
+    if let Ok(mut t2) = state.tier2_offloaded.lock() {
+        *t2 = false;
+    }
+
     *state
         .last_activity
         .lock()
@@ -215,24 +230,48 @@ fn prepare_for_update(app_handle: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-fn backend_is_idle(app_handle: &tauri::AppHandle) -> bool {
-    let Some(state) = app_handle.try_state::<BackendState>() else {
-        return false;
-    };
-    let Ok(child) = state.child.lock() else {
-        return false;
-    };
-    let Ok(last_activity) = state.last_activity.lock() else {
-        return false;
-    };
-    child.is_some() && last_activity.elapsed() >= BACKEND_IDLE_AFTER
-}
-
 fn start_idle_monitor(app_handle: tauri::AppHandle) {
     thread::spawn(move || loop {
         thread::sleep(BACKEND_IDLE_POLL);
-        if backend_is_idle(&app_handle) {
+        let Some(state) = app_handle.try_state::<BackendState>() else {
+            continue;
+        };
+        let Ok(child) = state.child.lock() else {
+            continue;
+        };
+        if child.is_none() {
+            continue;
+        }
+        let Ok(last_activity) = state.last_activity.lock() else {
+            continue;
+        };
+        let elapsed = last_activity.elapsed();
+
+        if elapsed >= Duration::from_secs(TIER3_SIDECAR_IDLE_SECS) {
+            drop(child);
+            drop(last_activity);
             stop_backend(&app_handle);
+            continue;
+        }
+
+        if elapsed >= Duration::from_secs(TIER2_LT_IDLE_SECS) {
+            if let Ok(mut t2) = state.tier2_offloaded.lock() {
+                if !*t2 {
+                    if post_backend_endpoint("/languagetool/unload") {
+                        *t2 = true;
+                    }
+                }
+            }
+        }
+
+        if elapsed >= Duration::from_secs(TIER1_LLM_IDLE_SECS) {
+            if let Ok(mut t1) = state.tier1_offloaded.lock() {
+                if !*t1 {
+                    if post_backend_endpoint("/ai/unload") {
+                        *t1 = true;
+                    }
+                }
+            }
         }
     });
 }
@@ -263,6 +302,8 @@ fn main() {
             app.manage(BackendState {
                 child: Mutex::new(initial_child),
                 last_activity: Mutex::new(Instant::now()),
+                tier1_offloaded: Mutex::new(false),
+                tier2_offloaded: Mutex::new(false),
                 lifecycle: Mutex::new(()),
             });
             start_idle_monitor(app.handle().clone());

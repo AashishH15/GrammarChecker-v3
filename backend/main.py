@@ -6,7 +6,13 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from ai_prefs import load_prefs, save_prefs
-from inference import BundledBackend, InferenceUnavailable, OllamaBackend, get_backend
+from inference import (
+    BundledBackend,
+    InferenceUnavailable,
+    OllamaBackend,
+    get_backend,
+    unload_active_backend,
+)
 from languagetool import check_text, close_tool
 from model_manager import (
     cancel_download,
@@ -83,6 +89,20 @@ def shutdown():
     if server is not None:
         server.should_exit = True
     return {"shutting_down": server is not None}
+
+
+@app.post("/ai/unload")
+def ai_unload():
+    """Tier 1 offload: free LLM model weights from RAM."""
+    unload_active_backend()
+    return {"unloaded": "llm"}
+
+
+@app.post("/languagetool/unload")
+def languagetool_unload():
+    """Tier 2 offload: stop LanguageTool JVM."""
+    close_tool()
+    return {"unloaded": "languagetool"}
 
 
 @app.post("/grammar/check")
