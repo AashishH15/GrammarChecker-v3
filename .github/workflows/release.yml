@@ -138,7 +138,7 @@ jobs:
         if: matrix.platform == 'windows'
         working-directory: backend
         run: |
-          curl -L --fail --retry 3 -o "${{ matrix.jre_archive }}" "${{ matrix.jre_url }}"
+          curl -L --fail --retry 5 --retry-all-errors --retry-delay 3 -o "${{ matrix.jre_archive }}" "${{ matrix.jre_url }}"
           python - <<'PY'
           import os
           import shutil
@@ -161,7 +161,7 @@ jobs:
         if: matrix.platform == 'macos'
         working-directory: backend
         run: |
-          curl -L --fail --retry 3 -o "${{ matrix.jre_archive }}" "${{ matrix.jre_url }}"
+          curl -L --fail --retry 5 --retry-all-errors --retry-delay 3 -o "${{ matrix.jre_archive }}" "${{ matrix.jre_url }}"
           tar -xzf "${{ matrix.jre_archive }}"
           rm -rf ../frontend/src-tauri/jre
           mv jdk-21*/ ../frontend/src-tauri/jre
