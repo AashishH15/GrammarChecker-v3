@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from ai_prefs import load_prefs, save_prefs
 from inference import BundledBackend, InferenceUnavailable, OllamaBackend, get_backend
-from languagetool import check_text, warm_up
+from languagetool import check_text
 from model_manager import (
     cancel_download,
     delete_model,
@@ -19,11 +19,8 @@ from model_manager import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Pre-launch the LanguageTool JVM on boot so the first user request
-    # doesn't pay the multi-second cold-start cost. A failure here (e.g. the
-    # JVM isn't installed) shouldn't crash the server; the first real request
-    # will attempt to warm up again.
-    warm_up()
+    # LanguageTool starts lazily on the first proofreading request so the
+    # desktop window does not remain blank while the JVM warms up.
     # Probe for a local inference backend: prefer a detected Ollama
     # server, else fall back to the bundled backend. Swallowed so a missing
     # backend never blocks startup; it re-resolves lazily on first use.
@@ -42,8 +39,10 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         # Tauri's bundled WebView origin, so the desktop app can call the
-        # sidecar API on localhost:8000 without a CORS block.
+        # sidecar API on localhost without a CORS block.
         "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
         "http://localhost",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
