@@ -10,7 +10,7 @@ done here — the file just lands on disk, ready for the loader to pick up.
 
 Pinned artifacts:
   - "2b"  -> bartowski/Qwen_Qwen3.5-2B-GGUF  / Qwen_Qwen3.5-2B-Q4_K_M.gguf  (~1.4 GB)
-  - "0.8b"-> bartowski/Qwen_Qwen3.5-0.8B-GGUF / Qwen3.5-0.8B-Q4_K_M.gguf    (~0.58 GB)
+  - "0.8b"-> bartowski/Qwen_Qwen3.5-0.8B-GGUF / Qwen_Qwen3.5-0.8B-Q8_0.gguf    (~0.84 GB)
 """
 
 import os
