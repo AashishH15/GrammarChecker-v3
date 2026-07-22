@@ -41,6 +41,12 @@ GENERATE_TIMEOUT = 120
 # for ~2048 output. Overridable per-call via opts["max_tokens"].
 TRANSFORM_MAX_TOKENS = 2048
 
+SYSTEM_PROMPT = (
+    "You are a writing assistant. Follow the user's "
+    "instruction and rewrite only what is asked. Do not "
+    "explain. Do not think aloud."
+)
+
 # Qwen3.5 is a reasoning-capable model. For short text transforms, chain-of-
 # thought is pure overhead (~10x slower, no quality gain). We disable
 # thinking on both backends. Ollama honors a `think: false` flag; llama.cpp
@@ -131,6 +137,7 @@ class OllamaBackend(InferenceBackend):
         # per-model), which previously truncated long rewrites/tables.
         payload = {
             "model": model,
+            "system": SYSTEM_PROMPT,
             "prompt": f"{prompt}\n\n{text}",
             "stream": False,
             "think": False,
@@ -208,14 +215,7 @@ class BundledBackend(InferenceBackend):
         self._ensure_loaded()
         max_tokens = int(opts.pop("max_tokens", TRANSFORM_MAX_TOKENS))
         messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a writing assistant. Follow the user's "
-                    "instruction and rewrite only what is asked. Do not "
-                    "explain. Do not think aloud."
-                ),
-            },
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": f"{prompt}\n\n{text}"},
         ]
         try:

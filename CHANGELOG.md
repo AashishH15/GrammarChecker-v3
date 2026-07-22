@@ -7,6 +7,14 @@ This changelog tracks what is **live** in each release and what is still
 **stubbed** (shown in the interface but not yet functional). Stubbed features
 are listed so the release reads honestly about what works today.
 
+## v0.5.19 - Shared System Prompt Parity Across Inference Backends
+
+### Changes Made:
+
+- **Unified System Instructions**: Defined a single module-level `SYSTEM_PROMPT` constant in `backend/inference.py` enforced across both local bundled GGUF models and external Ollama servers.
+- **Ollama System Field Inclusion**: Passed top-level `"system": SYSTEM_PROMPT` to Ollama `/api/generate` requests, preventing external models (`llama3`, `mistral`, `deepseek-r1`, `qwen2.5`) from outputting conversational preamble or reasoning chatter.
+- **Architectural Prompt Parity**: Refactored `BundledBackend` and `OllamaBackend` to reference the single source of truth constant, guaranteeing complete behavioral parity and preventing prompt drift.
+
 ## v0.5.18 - Non-Blocking Startup, Instant Quit & Release Workflow Prioritization
 
 - **Non-Blocking UI Startup**: Backend sidecar startup runs on an asynchronous background thread so the window and `index.html` load instantly (< 1ms) without blocking the OS UI thread.
