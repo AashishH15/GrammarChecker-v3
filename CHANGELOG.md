@@ -15,6 +15,11 @@ are listed so the release reads honestly about what works today.
 - **Sub-Microsecond 64-Bit Hashing**: Implemented synchronous `fnv1a64(str)` hashing (< 20 nanoseconds per block) for instant LRU cache key calculations without Promise overhead.
 - **Context-Aware Predecessor Keys**: Paragraph cache keys incorporate the preceding paragraph's suffix (`suffix(A, 64)`). Deletions, additions, or merges automatically update predecessor keys and invalidate downstream boundary rules without requiring complex cascade-invalidation code.
 - **Differentiated Proofread Triggers**: Live typing auto-checks evaluate only modified/uncached paragraphs; clicking the manual **Proofread** button or pressing `Ctrl`/`Cmd` + `Enter` bypasses the cache to perform a 100% full-document scan.
+- **Non-Blocking UI Startup**: Backend sidecar startup runs on a background thread so the window and `index.html` load instantly (< 1ms) without blocking the OS UI thread.
+- **Instant Window Hiding on Quit**: Main window hides (`window.hide()`) on line 1 of the Quit handler so the desktop window vanishes instantly while process cleanup completes in the background.
+- **Native Window Theme & Boot Optimization**: Configured `"theme": "Light"` and `"backgroundColor": "#f7f7f5"` in `tauri.conf.json`, and set Google Fonts to non-blocking loading in `index.html` for instant frame-1 boot screen rendering.
+- **Detached Process Cleanup & Console Window Suppression**: Added silent Java process termination on quit (`taskkill /F /IM java.exe`) and global Windows `CREATE_NO_WINDOW` / `SW_HIDE` subprocess overrides to eliminate console window flashes.
+- **Release Workflow Prioritization**: Updated `.github/workflows/release.yml` to prioritize extracting release notes directly from `CHANGELOG.md` first.
 
 ## v0.5.16 - Memory Tuning, Process Tree Cleanup & Pre-warming
 
