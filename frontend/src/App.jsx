@@ -30,12 +30,14 @@ import GrammarTooltip from "./GrammarTooltip.jsx";
 import Settings, { SETTINGS_DEFAULTS } from "./Settings.jsx";
 import DictionaryPanel from "./DictionaryPanel.jsx";
 import AiSetupModal from "./AiSetupModal.jsx";
+import HistoryPanel from "./HistoryPanel.jsx";
 import useTransform from "./useTransform.js";
 import { isAiTool, promptForTool } from "./prompts.js";
 import { marked } from "marked";
 import {
   Gear,
   BookBookmark,
+  ClockCounterClockwise,
   ArrowsOut,
   ArrowsIn,
   ArrowLineLeft,
@@ -96,7 +98,17 @@ const fontSizeKey = "lexicon:fontSize";
 const focusModeKey = "lexicon:focusMode";
 const lineSpacingKey = "lexicon:lineSpacing";
 const dictionaryKey = "lexicon:user_dictionary";
+const documentHistoryKey = "lexicon:document_history";
+const transformHistoryKey = "lexicon:transform_history";
+const MAX_HISTORY_ITEMS = 20;
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || "v0.6.0";
+
+function capHistory(list, newEntry, max) {
+  const locked = list.filter((e) => e.locked);
+  const unlocked = [newEntry, ...list.filter((e) => !e.locked)];
+  const trimmed = unlocked.slice(0, Math.max(0, max - locked.length));
+  return [...locked, ...trimmed];
+}
 
 const SAMPLE_DOC_HTML = `
 <h1>Welcome to Lexicon</h1>
@@ -148,11 +160,21 @@ function loadPanelOpen(key) {
 
 function loadDictionary() {
   try {
-    const saved = JSON.parse(localStorage.getItem(dictionaryKey));
-    return Array.isArray(saved) ? saved : [];
+    const raw = localStorage.getItem(dictionaryKey);
+    return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
+}
+
+function loadHistory(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+
 }
 
 function loadPanelWidth(key, fallback) {
@@ -194,6 +216,17 @@ export default function App() {
   const [focusMode, setFocusMode] = useState(loadFocusMode);
   const [lineSpacing, setLineSpacing] = useState(loadLineSpacing);
   const [userDictionary, setUserDictionary] = useState(loadDictionary);
+  const [documentHistory, setDocumentHistory] = useState(() =>
+    loadHistory(documentHistoryKey)
+  );
+  const [transformHistory, setTransformHistory] = useState(() =>
+    loadHistory(transformHistoryKey)
+  );
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [autoDraftMode, setAutoDraftMode] = useState(() => {
+    const saved = localStorage.getItem("lexicon:auto_draft_mode");
+    return saved !== null ? saved === "true" : true;
+  });
   const [docText, setDocText] = useState("");
   const [toneResult, setToneResult] = useState(null);
   const [editorFocused, setEditorFocused] = useState(false);
@@ -301,6 +334,8 @@ export default function App() {
   const transformRunningRef = useRef(false);
   const cancelTransformRef = useRef(false);
   const runIdRef = useRef(0);
+  const historyTimerRef = useRef(null);
+  const lastSnapshotHtmlRef = useRef("");
   // Budgets must fit n_ctx (4096): input + max_tokens (2048) + overhead.
   // Keep input per chunk <= 1800 tokens so 1800 + 2048 ~= 3848 < 4096.
   const TRANSFORM_INPUT_BUDGET = 1800;
@@ -547,14 +582,74 @@ export default function App() {
     content: loadContent(),
     onUpdate: ({ editor }) => {
       const text = editor.getText();
-      localStorage.setItem(storageKey, editor.getHTML());
+      const html = editor.getHTML();
+      localStorage.setItem(storageKey, html);
       setDocText(text);
       setToneResult(detectTone(text));
       // Smart trigger: once a word or sentence is clearly finished
       const smartTrigger = /[.?\s]$/.test(text);
       scheduleCheckRef.current(smartTrigger);
+      // Debounced draft snapshot (only in auto mode)
+      if (autoDraftMode && html !== lastSnapshotHtmlRef.current) {
+        if (historyTimerRef.current) {
+          clearTimeout(historyTimerRef.current);
+        }
+        historyTimerRef.current = setTimeout(() => {
+          const currentHtml = editor.getHTML();
+          if (currentHtml === lastSnapshotHtmlRef.current) return;
+          lastSnapshotHtmlRef.current = currentHtml;
+          const currentText = editor.getText();
+          const words = currentText.trim()
+            ? currentText.trim().split(/\s+/).length
+            : 0;
+          setDocumentHistory((prev) => {
+            const entry = {
+              id: Date.now(),
+              type: "draft",
+              html: currentHtml,
+              text: currentText,
+              timestamp: Date.now(),
+              wordCount: words,
+              charCount: currentText.length,
+            };
+            return capHistory(prev, entry, MAX_HISTORY_ITEMS);
+          });
+        }, 3000);
+      }
     },
   });
+
+  // Save an initial snapshot once the editor has content.
+  useEffect(() => {
+    if (!editor) return;
+    const html = editor.getHTML();
+    const text = editor.getText();
+    if (!text.trim() && html === "<p></p>") return;
+    lastSnapshotHtmlRef.current = html;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    setDocumentHistory((prev) => {
+      if (prev.length > 0 && prev[0].html === html) return prev;
+      const entry = {
+        id: Date.now(),
+        type: "draft",
+        html,
+        text,
+        timestamp: Date.now(),
+        wordCount: words,
+        charCount: text.length,
+      };
+      return capHistory(prev, entry, MAX_HISTORY_ITEMS);
+    });
+  }, [!!editor]);
+
+  // Clean up the history timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (historyTimerRef.current) {
+        clearTimeout(historyTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!editor) {
@@ -920,6 +1015,31 @@ function matchKey(match, text) {
     focusError(editor, match.id);
   }
 
+  // Persist history to localStorage whenever it changes.
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        documentHistoryKey,
+        JSON.stringify(documentHistory)
+      );
+    } catch {
+      // Storage full or unavailable — silently ignore.
+    }
+  }, [documentHistory]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        transformHistoryKey,
+        JSON.stringify(transformHistory)
+      );
+    } catch {
+      // Storage full or unavailable — silently ignore.
+    }
+  }, [transformHistory]);
+  useEffect(() => {
+    localStorage.setItem("lexicon:auto_draft_mode", String(autoDraftMode));
+  }, [autoDraftMode]);
+
   function handleLanguageChange(nextLanguage) {
     setLanguage(nextLanguage);
     localStorage.setItem(languageKey, nextLanguage);
@@ -1255,6 +1375,19 @@ function matchKey(match, text) {
       setTransformResults([
         { tool: name, text: result, from, to, part: 1, total: 1 },
       ]);
+      setTransformHistory((prev) => {
+        const entry = {
+          id: Date.now(),
+          type: "transform",
+          tool: name,
+          sourceText: editor.state.doc.textBetween(from, to, " "),
+          resultText: result,
+          from,
+          to,
+          timestamp: Date.now(),
+        };
+        return capHistory(prev, entry, MAX_HISTORY_ITEMS);
+      });
       return;
     }
     // Whole-doc: chunk if it exceeds the single-shot budget, else one card.
@@ -1278,6 +1411,7 @@ function matchKey(match, text) {
     setTransformResults([]);
     setTransformProgress({ current: 0, total });
     let aborted = false;
+    const loopCards = [];
     for (let i = 0; i < total; i++) {
       if (cancelTransformRef.current || runIdRef.current !== runId) {
         aborted = true;
@@ -1303,12 +1437,29 @@ function matchKey(match, text) {
         part: i + 1,
         total,
       };
+      loopCards.push(card);
       setTransformResults((prev) => [...prev, card]);
     }
     transformRunningRef.current = false;
     setTransformRunning(false);
     editor.setEditable(true);
     setTransformProgress(null);
+    if (!aborted && loopCards.length > 0) {
+      const allText = loopCards.map((r) => r.text).join("\n\n");
+      setTransformHistory((prev) => {
+        const entry = {
+          id: Date.now(),
+          type: "transform",
+          tool: name,
+          sourceText: fullText || editor.getText(),
+          resultText: allText,
+          from: loopCards[0].from,
+          to: loopCards[loopCards.length - 1].to,
+          timestamp: Date.now(),
+        };
+        return capHistory(prev, entry, MAX_HISTORY_ITEMS);
+      });
+    }
     if (aborted && runIdRef.current === runId) {
       // Cancel or error: clear the panel (per design — no partial cards kept).
       // Guarded by runId so a stale loop waking after a newer run started can
@@ -1380,6 +1531,27 @@ function matchKey(match, text) {
     setActiveTool("Proofread");
     setUserResolvedAll(false);
     runGrammarCheck();
+    // Snapshot the current draft before running a check.
+    if (editor) {
+      const html = editor.getHTML();
+      const text = editor.getText();
+      if (html !== lastSnapshotHtmlRef.current) {
+        lastSnapshotHtmlRef.current = html;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        setDocumentHistory((prev) => {
+          const entry = {
+            id: Date.now(),
+            type: "draft",
+            html,
+            text,
+            timestamp: Date.now(),
+            wordCount: words,
+            charCount: text.length,
+          };
+          return capHistory(prev, entry, MAX_HISTORY_ITEMS);
+        });
+      }
+    }
   }
 
   proofreadRef.current = triggerProofread;
@@ -1483,6 +1655,74 @@ function matchKey(match, text) {
       rightVisible ? "0px" : `-${w}px`,
     );
   }, [rightVisible]);
+
+  function handleRestoreDraft(draft) {
+    if (!editor || !draft) return;
+    if (
+      !window.confirm(
+        "Restoring this draft will replace your current document. Continue?"
+      )
+    ) {
+      return;
+    }
+    editor.commands.setContent(draft.html);
+    localStorage.setItem(storageKey, draft.html);
+    setDocText(draft.text);
+  }
+
+  function handleReapplyTransform(entry) {
+    if (!editor || !entry) return;
+    let html = marked.parse(entry.resultText);
+    if (/<table/i.test(html)) {
+      html = normalizeTableCells(html);
+    }
+    editor
+      .chain()
+      .focus()
+      .insertContentAt({ from: entry.from, to: entry.to }, html)
+      .run();
+  }
+
+  function handleManualSave() {
+    if (!editor) return;
+    const html = editor.getHTML();
+    const text = editor.getText();
+    if (html === lastSnapshotHtmlRef.current) return;
+    lastSnapshotHtmlRef.current = html;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    setDocumentHistory((prev) => {
+      const entry = {
+        id: Date.now(),
+        type: "draft",
+        html,
+        text,
+        timestamp: Date.now(),
+        wordCount: words,
+        charCount: text.length,
+      };
+      return capHistory(prev, entry, MAX_HISTORY_ITEMS);
+    });
+  }
+
+  function handleToggleDraftLock(id) {
+    setDocumentHistory((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, locked: !d.locked } : d))
+    );
+  }
+
+  function handleToggleTransformLock(id) {
+    setTransformHistory((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, locked: !t.locked } : t))
+    );
+  }
+
+  function handleClearDrafts() {
+    setDocumentHistory((prev) => prev.filter((d) => d.locked));
+  }
+
+  function handleClearTransforms() {
+    setTransformHistory((prev) => prev.filter((t) => t.locked));
+  }
 
   return (
     <div className="lex-app-shell flex flex-col h-screen overflow-hidden bg-canvas text-ink">
@@ -1613,6 +1853,19 @@ function matchKey(match, text) {
               )}
             </div>
             <div className="flex flex-col gap-1 border-t border-hairline p-4">
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                className="group flex items-center gap-2.5 rounded px-2 py-1.5 text-left text-sm text-muted transition-colors hover:bg-hairline/60 hover:text-ink"
+                aria-label="Open history"
+              >
+                <ClockCounterClockwise
+                  size={16}
+                  weight="bold"
+                  className="transition-transform duration-200 group-hover:scale-110"
+                />
+                <span>History / Recents</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setDictionaryOpen(true)}
@@ -1820,6 +2073,22 @@ function matchKey(match, text) {
         onAddWord={handleAddWordToDictionary}
         onRemoveWord={handleRemoveFromDictionary}
         onClose={() => setDictionaryOpen(false)}
+      />
+
+      <HistoryPanel
+        open={historyOpen}
+        documentHistory={documentHistory}
+        transformHistory={transformHistory}
+        autoDraftMode={autoDraftMode}
+        onAutoDraftModeChange={setAutoDraftMode}
+        onManualSave={handleManualSave}
+        onRestoreDraft={handleRestoreDraft}
+        onReapplyTransform={handleReapplyTransform}
+        onToggleDraftLock={handleToggleDraftLock}
+        onToggleTransformLock={handleToggleTransformLock}
+        onClearDrafts={handleClearDrafts}
+        onClearTransforms={handleClearTransforms}
+        onClose={() => setHistoryOpen(false)}
       />
       {aiSetupOpen && (
         <AiSetupModal
