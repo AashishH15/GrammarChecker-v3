@@ -250,6 +250,26 @@ kbd {
   border-color: var(--border-dark);
 }
 
+#github-stars-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+}
+
+.github-star-icon {
+  color: #e3b341;
+  transform: translateY(-1px);
+}
+
+.github-stars-divider {
+  width: 1px;
+  height: 12px;
+  background-color: var(--border-color);
+  margin-left: 2px;
+  margin-right: 4px;
+}
+
 /* Hero Section */
 .hero {
   padding: 140px 0 70px;

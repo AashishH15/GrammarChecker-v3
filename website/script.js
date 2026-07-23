@@ -4,6 +4,7 @@
   // Constants & GitHub API Endpoints
   const GITHUB_REPO = 'AashishH15/Lexicon';
   const API_RELEASES_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases`;
+  const API_REPO_URL = `https://api.github.com/repos/${GITHUB_REPO}`;
   const FALLBACK_RELEASE_PAGE = `https://github.com/${GITHUB_REPO}/releases/latest`;
 
   // DOM Elements
@@ -194,6 +195,28 @@
   }
 
   /**
+   * Fetch GitHub Repository Stars & Update Header Badge
+   */
+  async function initStarsBadge() {
+    const starsContainer = document.getElementById('github-stars-container');
+    const starsCountText = document.getElementById('github-stars-count');
+    if (!starsContainer || !starsCountText) return;
+
+    try {
+      const response = await fetch(API_REPO_URL);
+      if (!response.ok) throw new Error(`GitHub API HTTP ${response.status}`);
+      const data = await response.json();
+      const stars = data.stargazers_count;
+      if (typeof stars === 'number') {
+        starsCountText.textContent = stars;
+        starsContainer.style.display = 'inline-flex';
+      }
+    } catch (err) {
+      console.warn('Could not fetch GitHub repository stars automatically:', err);
+    }
+  }
+
+  /**
    * Platform Dropdown Toggle
    */
   function initPlatformDropdown() {
@@ -214,6 +237,7 @@
   // Initialize on DOM Ready
   document.addEventListener('DOMContentLoaded', function () {
     initReleaseInfo();
+    initStarsBadge();
     initPlatformDropdown();
   });
 })();
