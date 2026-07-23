@@ -489,7 +489,8 @@ b,
   text-decoration: none;
 }
 
-.faux-window-body img {
+.faux-window-body img,
+.faux-window-body video {
   width: 100%;
   height: auto;
   display: block;
