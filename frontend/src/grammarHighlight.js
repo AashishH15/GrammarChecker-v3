@@ -47,7 +47,7 @@ function decorationsFromMatches(doc, matches, map, activeId) {
         from,
         to,
         {
-          class: isActive ? "lex-error lex-error-active" : "lex-error",
+          class: isActive ? "lex-error lex-error-active lex-squiggle-enter" : "lex-error lex-squiggle-enter",
           "data-error-id": String(match.id),
         },
         { id: match.id },

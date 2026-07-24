@@ -428,6 +428,23 @@
     }
   }
 
+  /* One-shot pulse when a squiggle decoration first appears */
+  .lex-squiggle-enter {
+    animation: lex-squiggle-pulse 350ms ease-out 1 both;
+  }
+
+  @keyframes lex-squiggle-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(159, 47, 45, 0);
+    }
+    40% {
+      box-shadow: 0 0 0 2px rgba(159, 47, 45, 0.15);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(159, 47, 45, 0);
+    }
+  }
+
   @keyframes lex-ellipsis-typing {
     0% {
       clip-path: inset(0 100% 0 0);
