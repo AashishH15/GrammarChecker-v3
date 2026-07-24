@@ -1,6 +1,13 @@
 import SuggestionCard from "./SuggestionCard.jsx";
 import DocStats from "./DocStats.jsx";
-import { ArrowLineRight, CircleNotch, Warning, Lightbulb } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLineRight, CheckCircle, CircleNotch, Warning, Lightbulb } from "@phosphor-icons/react";
+
+const BLOOM_MESSAGES = [
+  "No issues detected. Your draft is clear.",
+  "Every sentence reads cleanly.",
+  "Nothing needs attention here.",
+];
 
 export default function ReviewPanel({
   editor,
@@ -27,6 +34,40 @@ export default function ReviewPanel({
   onDismissTransform,
 }) {
   const count = grammarMatches.length;
+  const [showBloom, setShowBloom] = useState(false);
+  const bloomMessageRef = useRef("");
+  const prevCheckingRef = useRef(checking);
+
+  // Show bloom when a proofread pass completes with zero issues
+  useEffect(() => {
+    const justCompleted = prevCheckingRef.current && !checking;
+    prevCheckingRef.current = checking;
+    if (justCompleted && count === 0 && activeTool === "Proofread" && editor?.getText().trim().length > 0) {
+      if (!bloomMessageRef.current) {
+        bloomMessageRef.current = BLOOM_MESSAGES[Math.floor(Math.random() * BLOOM_MESSAGES.length)];
+      }
+      setShowBloom(true);
+    }
+  }, [checking, count, activeTool, editor]);
+
+  // Dismiss bloom when the user edits text
+  useEffect(() => {
+    if (!editor || !showBloom) return;
+    const handler = () => {
+      setShowBloom(false);
+      bloomMessageRef.current = "";
+    };
+    editor.on("update", handler);
+    return () => editor.off("update", handler);
+  }, [editor, showBloom]);
+
+  // Dismiss bloom when new issues appear
+  useEffect(() => {
+    if (count > 0) {
+      setShowBloom(false);
+      bloomMessageRef.current = "";
+    }
+  }, [count]);
 
   return (
     <div className="flex h-full flex-col px-4 pb-6 pt-4">
@@ -68,9 +109,16 @@ export default function ReviewPanel({
               status :: initializing engine<span className="lex-ellipsis">...</span>
             </p>
           ) : count === 0 ? (
-            <p className="font-mono text-xs lowercase tracking-[0.04em] text-muted">
-              status :: {userResolvedAll ? "no issues remaining" : "no issues found"}
-            </p>
+            showBloom ? (
+              <div className="lex-bloom flex w-full items-center gap-2 rounded-xl bg-[#EDF3EC] px-4 py-3 text-[#346538] border border-[#D3E2D0]">
+                <CheckCircle size={18} weight="fill" />
+                <span className="font-sans text-sm">{bloomMessageRef.current}</span>
+              </div>
+            ) : (
+              <p className="font-mono text-xs lowercase tracking-[0.04em] text-muted">
+                status :: {userResolvedAll ? "no issues remaining" : "no issues found"}
+              </p>
+            )
           ) : (
             <>
               <div className="mb-3 flex items-center gap-3">
