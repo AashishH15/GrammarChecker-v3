@@ -153,13 +153,15 @@
     margin: 0.4em 0;
   }
 
-  /* Empty-draft placeholder (Placeholder extension) */
+  /* Empty-draft placeholder — rotates through warm, faint, italic prompts */
   .ProseMirror p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
     float: left;
     height: 0;
     pointer-events: none;
     color: #787774;
+    font-style: italic;
+    opacity: 0.55;
   }
 
   .ProseMirror blockquote {

@@ -103,6 +103,19 @@ const transformHistoryKey = "lexicon:transform_history";
 const MAX_HISTORY_ITEMS = 20;
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || "v0.6.0";
 
+const PLACEHOLDER_PROMPTS = [
+  "Write a rough first draft. Lex will help clean it up later.",
+  "Start with one sentence.",
+  "Ideas first, polish second.",
+  "Your draft stays 100% on this device.",
+  "Let the words come — you can shape them after.",
+  "A blank page is just a starting line.",
+  "Write like no one else is reading. (Because no one is.)",
+  "Drop a thought here, even if it's half-formed.",
+  "The best draft is the one you actually start.",
+  "No pressure. Just put something down.",
+];
+
 function capHistory(list, newEntry, max) {
   const locked = list.filter((e) => e.locked);
   const unlocked = [newEntry, ...list.filter((e) => !e.locked)];
@@ -336,6 +349,10 @@ export default function App() {
   const runIdRef = useRef(0);
   const historyTimerRef = useRef(null);
   const lastSnapshotHtmlRef = useRef("");
+  const placeholderRef = useRef(
+    PLACEHOLDER_PROMPTS[Math.floor(Math.random() * PLACEHOLDER_PROMPTS.length)]
+  );
+  const wasNotEmptyRef = useRef(false);
   // Budgets must fit n_ctx (4096): input + max_tokens (2048) + overhead.
   // Keep input per chunk <= 1800 tokens so 1800 + 2048 ~= 3848 < 4096.
   const TRANSFORM_INPUT_BUDGET = 1800;
@@ -470,10 +487,9 @@ export default function App() {
       // full keyboard navigation (arrows + Enter). Active formats are flagged
       // so re-selecting toggles them off.
       SlashCommand,
-      // Clean empty-draft hint. Only shows when the document has no content,
-      // so it stays out of the way once the user starts writing.
+      // Clean empty-draft hint. Rotates through a set of warm prompts.
       Placeholder.configure({
-        placeholder: "Start writing, and press Proofread to check your draft…",
+        placeholder: () => placeholderRef.current,
       }),
       // Typography smart rules: ... -> ellipsis, -- -> em dash, and straight
       // quotes -> curly quotes, applied live as the user types.
@@ -589,6 +605,12 @@ export default function App() {
       // Smart trigger: once a word or sentence is clearly finished
       const smartTrigger = /[.?\s]$/.test(text);
       scheduleCheckRef.current(smartTrigger);
+      // Only rotate to a new prompt when transitioning from having text -> empty
+      const hasText = text.trim().length > 0;
+      if (!hasText && wasNotEmptyRef.current) {
+        placeholderRef.current = PLACEHOLDER_PROMPTS[Math.floor(Math.random() * PLACEHOLDER_PROMPTS.length)];
+      }
+      wasNotEmptyRef.current = hasText;
       // Debounced draft snapshot (only in auto mode)
       if (autoDraftMode && html !== lastSnapshotHtmlRef.current) {
         if (historyTimerRef.current) {
